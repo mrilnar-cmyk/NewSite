@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Расчёт: {{ formula.symbol }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- Заголовок -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2>
+                    <code class="text-primary">{{ formula.symbol }}</code>
+                    <span class="text-muted">—</span>
+                    {{ formula.name }}
+                </h2>
+                {% if formula.unit %}
+                <span class="badge bg-secondary">{{ formula.unit }}</span>
+                {% endif %}
+            </div>
+            <div>
+                <a href="{% url 'calculator:workspace' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> К списку
+                </a>
+                <a href="{% url 'formulas:formula_detail' formula.pk %}" class="btn btn-outline-primary">
+                    <i class="bi bi-info-circle"></i> Подробнее
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Левая колонка - Входные данные -->
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-input-cursor-text"></i> Входные данные</h5>
+            </div>
+            <div class="card-body">
+                <form id="calculation-form">
+                    <input type="hidden" id="formula-id" value="{{ formula.pk }}">
+                    
+                    {% for var in variables %}
+                    <div class="mb-3">
+                        <label class="form-label d-flex justify-content-between">
+                            <span>
+                                <code class="fs-5">{{ var.symbol }}</code>
+                                {% if var.source %}
+                                <a href="{% url 'calculator:formula_calculate' var.source.pk %}" 
+                                   class="text-decoration-none ms-2" title="Перейти к формуле">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
+                                {% endif %}
+                            </span>
+                            {% if var.is_formula %}
+                            <span class="badge bg-success">из формулы</span>
+                            {% endif %}
+                        </label>
+                        
+                        <div class="input-group">
+                            <input type="number" 
+                                   step="any"
+                                   class="form-control variable-input" 
+                                   id="var-{{ var.symbol }}"
+                                   name="{{ var.symbol }}"
+                                   data-symbol="{{ var.symbol }}"
+                                   data-is-formula="{{ var.is_formula|yesno:'true,false' }}"
+                                   placeholder="Введите значение"
+                                   {% if var.source and var.source.default_value %}
+                                   value="{{ var.source.default_value }}"
+                                   {% endif %}>
+                            {% if var.source and var.source.unit %}
+                            <span class="input-group-text">{{ var.source.unit }}</span>
+                            {% endif %}
+                        </div>
+                        
+                        {% if var.source %}
+                        <div class="form-text">{{ var.source.name }}</div>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        Формула не содержит переменных
+                    </div>
+                    {% endfor %}
+                    
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="button" id="calculate-btn" class="btn btn-success btn-lg">
+                            <i class="bi bi-play-fill"></i> Вычислить
+                        </button>
+                        <button type="button" id="reset-btn" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-counterclockwise"></i> Сбросить
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Зависимости -->
+        {% if dependencies %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-diagram-3"></i> Цепочка вычислений</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-2">
+                    Для вычисления {{ formula.symbol }} сначала будут вычислены:
+                </p>
+                <ol class="mb-0">
+                    {% for dep in dependencies %}
+                    <li>
+                        <code>{{ dep.symbol }}</code> — {{ dep.name }}
+                        <br><small class="text-muted">{{ dep.expression }}</small>
+                    </li>
+                    {% endfor %}
+                </ol>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Правая колонка - Результаты -->
+    <div class="col-lg-7">
+        <!-- Формула -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-calculator"></i> Формула</h5>
+            </div>
+            <div class="card-body">
+                <div class="formula-display p-3 bg-light rounded text-center">
+                    <code class="fs-4">{{ formula.symbol }} = {{ formula.expression }}</code>
+                </div>
+                {% if formula.description %}
+                <p class="mt-3 mb-0 text-muted">{{ formula.description }}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Результат -->
+        <div class="card" id="result-card" style="display: none;">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-check-circle"></i> Результат</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center py-4">
+                    <h1 class="display-4 text-success" id="main-result">
+                        <!-- Результат появится здесь -->
+                    </h1>
+                    <p class="lead text-muted">
+                        <code>{{ formula.symbol }}</code>
+                        {% if formula.unit %}= <span id="result-value"></span> {{ formula.unit }}{% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Ошибка -->
+        <div class="card" id="error-card" style="display: none;">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Ошибка</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger mb-0" id="error-message">
+                    <!-- Сообщение об ошибке -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Промежуточные результаты -->
+        <div class="card mt-4" id="intermediate-results" style="display: none;">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-list-ol"></i> Промежуточные вычисления</h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Символ</th>
+                            <th>Формула</th>
+                            <th>Результат</th>
+                        </tr>
+                    </thead>
+                    <tbody id="intermediate-tbody">
+                        <!-- Заполняется динамически -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/formula-calculate.js' %}"></script>
+{% endblock %}

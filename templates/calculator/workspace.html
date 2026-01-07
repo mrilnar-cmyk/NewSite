@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Калькулятор{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Левая панель - список формул -->
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 80px; max-height: calc(100vh - 100px); overflow-y: auto;">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-list-ul"></i> Формулы</h5>
+            </div>
+            <div class="card-body p-0">
+                <!-- Поиск -->
+                <div class="p-3 border-bottom">
+                    <input type="text" id="formula-search" class="form-control" placeholder="Поиск формулы...">
+                </div>
+                
+                <!-- Список по категориям -->
+                <div class="accordion accordion-flush" id="formula-accordion">
+                    {% for category_name, category_formulas in formulas_by_category.items %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" 
+                                    data-bs-toggle="collapse" 
+                                    data-bs-target="#cat-{{ forloop.counter }}">
+                                <span class="badge bg-secondary me-2">{{ category_formulas|length }}</span>
+                                {{ category_name }}
+                            </button>
+                        </h2>
+                        <div id="cat-{{ forloop.counter }}" class="accordion-collapse collapse" 
+                             data-bs-parent="#formula-accordion">
+                            <div class="list-group list-group-flush">
+                                {% for formula in category_formulas %}
+                                <a href="{% url 'calculator:formula_calculate' formula.pk %}" 
+                                   class="list-group-item list-group-item-action formula-item"
+                                   data-symbol="{{ formula.symbol }}"
+                                   data-name="{{ formula.name }}">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <code class="text-primary">{{ formula.symbol }}</code>
+                                            <br><small class="text-muted">{{ formula.name }}</small>
+                                        </div>
+                                        {% if formula.is_input %}
+                                        <span class="badge bg-info">Ввод</span>
+                                        {% else %}
+                                        <span class="badge bg-success">Расчёт</span>
+                                        {% endif %}
+                                    </div>
+                                </a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Правая панель - рабочая область -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-cpu"></i> Калькулятор</h4>
+            </div>
+            <div class="card-body">
+                <div class="text-center py-5">
+                    <i class="bi bi-arrow-left-circle fs-1 text-muted"></i>
+                    <h5 class="mt-3 text-muted">Выберите формулу для вычисления</h5>
+                    <p class="text-muted">
+                        Кликните на формулу в списке слева или воспользуйтесь поиском
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Быстрый калькулятор -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-lightning"></i> Быстрый расчёт</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">Введите выражение для быстрого вычисления:</p>
+                
+                <div class="mb-3">
+                    <textarea id="quick-expression" class="form-control font-monospace" rows="2" 
+                              placeholder="Например: sqrt(3^2 + 4^2) или sin(45) * 2"></textarea>
+                </div>
+                
+                <div class="row mb-3" id="quick-variables">
+                    <!-- Переменные добавляются динамически -->
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <button type="button" id="quick-calculate-btn" class="btn btn-primary">
+                        <i class="bi bi-play-fill"></i> Вычислить
+                    </button>
+                    <button type="button" id="quick-clear-btn" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-lg"></i> Очистить
+                    </button>
+                </div>
+                
+                <div id="quick-result" class="mt-3" style="display: none;">
+                    <div class="alert alert-success">
+                        <strong>Результат:</strong> <span id="quick-result-value"></span>
+                    </div>
+                </div>
+                
+                <div id="quick-error" class="mt-3" style="display: none;">
+                    <div class="alert alert-danger">
+                        <strong>Ошибка:</strong> <span id="quick-error-message"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/calculator.js' %}"></script>
+{% endblock %}

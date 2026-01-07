@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}Вариант {{ variant.number }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'calculator:project_list' %}">Проекты</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'calculator:project_detail' variant.project.pk %}">{{ variant.project.name }}</a></li>
+                <li class="breadcrumb-item active">Вариант {{ variant.number }}</li>
+            </ol>
+        </nav>
+        <h1>Вариант {{ variant.number }}</h1>
+        {% if variant.student_name %}
+        <p class="lead">{{ variant.student_name }}</p>
+        {% endif %}
+    </div>
+    <div class="col-auto">
+        <form method="POST" action="{% url 'calculator:variant_recalculate' variant.pk %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-arrow-clockwise"></i> Пересчитать
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Входные данные -->
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-input-cursor-text"></i> Входные данные</h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Параметр</th>
+                            <th>Значение</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in input_values %}
+                        <tr>
+                            <td>
+                                <code class="fs-5">{{ v.formula.symbol }}</code>
+                                <br><small class="text-muted">{{ v.formula.name }}</small>
+                            </td>
+                            <td>
+                                <strong>{{ v.value }}</strong>
+                                {% if v.formula.unit %}
+                                <small class="text-muted">{{ v.formula.unit }}</small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="2" class="text-center text-muted">Нет данных</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Результаты -->
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-calculator"></i> Результаты вычислений</h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Формула</th>
+                            <th>Выражение</th>
+                            <th>Результат</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in calculated_values %}
+                        <tr>
+                            <td>
+                                <code class="fs-5 text-primary">{{ v.formula.symbol }}</code>
+                                <br><small class="text-muted">{{ v.formula.name }}</small>
+                            </td>
+                            <td><code class="text-muted">{{ v.formula.expression|truncatechars:30 }}</code></td>
+                            <td>
+                                <strong class="text-success fs-5">{{ v.value|floatformat:4 }}</strong>
+                                {% if v.formula.unit %}
+                                <small class="text-muted">{{ v.formula.unit }}</small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-center text-muted">Нет вычисленных значений</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

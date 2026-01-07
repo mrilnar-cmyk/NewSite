@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block title %}Категории{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="bi bi-folder"></i> Категории</h1>
+    </div>
+    <div class="col-auto">
+        <a href="{% url 'formulas:category_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Добавить категорию
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    {% for category in categories %}
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-folder-fill text-warning"></i> {{ category.name }}
+                </h5>
+                <span class="badge bg-primary">{{ category.formulas.count }} формул</span>
+            </div>
+            <div class="card-body">
+                {% if category.description %}
+                <p class="card-text">{{ category.description|truncatechars:100 }}</p>
+                {% endif %}
+                
+                <!-- Подкатегории -->
+                {% if category.children.exists %}
+                <h6 class="text-muted mt-3">Подкатегории:</h6>
+                <ul class="list-unstyled">
+                    {% for child in category.children.all %}
+                    <li>
+                        <i class="bi bi-folder text-secondary"></i> {{ child.name }}
+                        <span class="badge bg-secondary">{{ child.formulas.count }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                
+                <!-- Формулы категории -->
+                {% if category.formulas.exists %}
+                <h6 class="text-muted mt-3">Формулы:</h6>
+                <div class="d-flex flex-wrap gap-1">
+                    {% for formula in category.formulas.all|slice:":8" %}
+                    <a href="{% url 'formulas:formula_detail' formula.pk %}" class="badge bg-light text-dark text-decoration-none">
+                        {{ formula.symbol }}
+                    </a>
+                    {% endfor %}
+                    {% if category.formulas.count > 8 %}
+                    <span class="badge bg-secondary">+{{ category.formulas.count|add:"-8" }}</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <div class="btn-group btn-group-sm w-100">
+                    <a href="{% url 'formulas:formula_list' %}?category={{ category.pk }}" class="btn btn-outline-primary">
+                        <i class="bi bi-list"></i> Формулы
+                    </a>
+                    <a href="{% url 'formulas:category_edit' category.pk %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-pencil"></i> Изменить
+                    </a>
+                    <a href="{% url 'formulas:category_delete' category.pk %}" class="btn btn-outline-danger">
+                        <i class="bi bi-trash"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="text-center py-5">
+            <i class="bi bi-folder-x fs-1 text-muted"></i>
+            <p class="text-muted mt-2">Категории ещё не созданы</p>
+            <a href="{% url 'formulas:category_create' %}" class="btn btn-primary">
+                <i class="bi bi-plus"></i> Создать первую категорию
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

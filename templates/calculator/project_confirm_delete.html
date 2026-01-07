@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block title %}Удаление проекта{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0">Удаление проекта</h4>
+            </div>
+            <div class="card-body">
+                <p>Вы уверены, что хотите удалить проект <strong>{{ object.name }}</strong>?</p>
+                <p class="text-danger">Все варианты ({{ object.variants.count }}) будут удалены!</p>
+            </div>
+            <div class="card-footer d-flex justify-content-between">
+                <a href="{% url 'calculator:project_detail' object.pk %}" class="btn btn-outline-secondary">Отмена</a>
+                <form method="POST">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Удалить</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if form.instance.pk %}Редактирование{% else %}Создание{% endif %} категории{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    {% if form.instance.pk %}
+                    <i class="bi bi-pencil"></i> Редактирование категории
+                    {% else %}
+                    <i class="bi bi-folder-plus"></i> Новая категория
+                    {% endif %}
+                </h4>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Название</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                        <div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Описание</label>
+                        {{ form.description }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Родительская категория</label>
+                        {{ form.parent }}
+                        <div class="form-text">Оставьте пустым для корневой категории</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Порядок сортировки</label>
+                        {{ form.order }}
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <a href="{% url 'formulas:category_list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Отмена
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg"></i> Сохранить
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

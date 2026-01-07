@@ -1,0 +1,376 @@
+/* ===================================
+   ОСНОВНЫЕ СТИЛИ
+   =================================== */
+
+:root {
+    --primary-color: #0d6efd;
+    --success-color: #198754;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --light-bg: #f8f9fa;
+    --border-color: #dee2e6;
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: #f5f5f5;
+}
+
+main {
+    flex: 1;
+}
+
+/* ===================================
+   НАВИГАЦИЯ
+   =================================== */
+
+.navbar-brand {
+    font-weight: 600;
+    font-size: 1.4rem;
+}
+
+.navbar-brand i {
+    margin-right: 0.5rem;
+}
+
+/* ===================================
+   КАРТОЧКИ
+   =================================== */
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid var(--border-color);
+}
+
+.card-header {
+    background-color: white;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 500;
+}
+
+/* ===================================
+   ФОРМУЛЫ
+   =================================== */
+
+/* Отображение формулы */
+.formula-display {
+    font-family: 'Cambria Math', 'Times New Roman', serif;
+    font-size: 1.2rem;
+}
+
+.formula-display code {
+    background: none;
+    color: inherit;
+    font-size: inherit;
+}
+
+/* Выражение формулы в таблице */
+.formula-expression {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9rem;
+    background-color: var(--light-bg);
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+/* Предпросмотр формулы */
+#formula-preview {
+    font-family: 'Cambria Math', 'Times New Roman', serif;
+    font-size: 1.3rem;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Красивые математические символы */
+.math-symbol {
+    font-family: 'Cambria Math', serif;
+}
+
+/* ===================================
+   РЕДАКТОР ФОРМУЛ
+   =================================== */
+
+#formula-toolbar {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+#formula-toolbar .btn {
+    min-width: 40px;
+    font-family: 'Cambria Math', serif;
+}
+
+#formula-toolbar .btn[data-insert="sqrt()"]::before {
+    content: "√";
+}
+
+#expression-input {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 1.1rem;
+}
+
+/* Обнаруженные переменные */
+#detected-variables .badge {
+    font-size: 0.9rem;
+    margin: 0.2rem;
+}
+
+#detected-variables .variable-input {
+    background-color: #e7f1ff;
+}
+
+#detected-variables .variable-formula {
+    background-color: #d1e7dd;
+}
+
+/* ===================================
+   КАЛЬКУЛЯТОР
+   =================================== */
+
+/* Поле ввода переменной */
+.variable-input {
+    font-family: 'Consolas', monospace;
+    font-size: 1.1rem;
+}
+
+.variable-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Результат вычисления */
+#main-result {
+    font-family: 'Cambria Math', serif;
+    font-weight: normal;
+}
+
+/* Промежуточные результаты */
+#intermediate-results code {
+    font-size: 1rem;
+}
+
+#intermediate-results .table td {
+    vertical-align: middle;
+}
+
+/* Статус вычисления */
+.calc-status-success {
+    color: var(--success-color);
+}
+
+.calc-status-error {
+    color: var(--danger-color);
+}
+
+.calc-status-pending {
+    color: var(--warning-color);
+}
+
+/* ===================================
+   БЫСТРЫЙ КАЛЬКУЛЯТОР
+   =================================== */
+
+#quick-expression {
+    font-family: 'Consolas', monospace;
+    font-size: 1.1rem;
+}
+
+#quick-result .alert,
+#quick-error .alert {
+    margin-bottom: 0;
+}
+
+#quick-result-value {
+    font-family: 'Consolas', monospace;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+/* ===================================
+   СПИСОК ФОРМУЛ
+   =================================== */
+
+.formula-item {
+    transition: background-color 0.15s ease;
+}
+
+.formula-item:hover {
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+.formula-item code {
+    font-size: 1.1rem;
+}
+
+/* Поиск в списке */
+#formula-search {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+}
+
+/* ===================================
+   АККОРДЕОН КАТЕГОРИЙ
+   =================================== */
+
+.accordion-button:not(.collapsed) {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: var(--primary-color);
+}
+
+.accordion-button .badge {
+    font-size: 0.75rem;
+}
+
+/* ===================================
+   ТАБЛИЦЫ
+   =================================== */
+
+.table code {
+    background-color: var(--light-bg);
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.2rem;
+}
+
+.table .btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+}
+
+/* ===================================
+   БЕЙДЖИ И СТАТУСЫ
+   =================================== */
+
+.badge {
+    font-weight: 500;
+}
+
+/* ===================================
+   АНИМАЦИИ
+   =================================== */
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Пульсация для загрузки */
+.pulse {
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* ===================================
+   STICKY ЭЛЕМЕНТЫ
+   =================================== */
+
+.sticky-top {
+    z-index: 1020;
+}
+
+/* Прокрутка в боковой панели */
+.card.sticky-top .card-body {
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+/* ===================================
+   АДАПТИВНОСТЬ
+   =================================== */
+
+@media (max-width: 991.98px) {
+    .sticky-top {
+        position: relative !important;
+        top: 0 !important;
+    }
+
+    .card.sticky-top {
+        max-height: none !important;
+    }
+}
+
+@media (max-width: 767.98px) {
+    #formula-toolbar .btn-group {
+        margin-bottom: 0.5rem;
+    }
+
+    .formula-display {
+        font-size: 1rem;
+    }
+
+    #main-result {
+        font-size: 2rem !important;
+    }
+}
+
+/* ===================================
+   УТИЛИТЫ
+   =================================== */
+
+.font-monospace {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.min-h-100 {
+    min-height: 100px;
+}
+
+/* Скрытие спиннеров в input[type=number] */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type=number] {
+    -moz-appearance: textfield;
+}
+
+/* ===================================
+   ПОДСВЕТКА СИНТАКСИСА
+   =================================== */
+
+.syntax-function {
+    color: #0d6efd;
+}
+
+.syntax-number {
+    color: #198754;
+}
+
+.syntax-operator {
+    color: #6c757d;
+}
+
+.syntax-variable {
+    color: #dc3545;
+}
+
+.syntax-constant {
+    color: #6f42c1;
+}

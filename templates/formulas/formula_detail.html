@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ formula.symbol }} - {{ formula.name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Основная информация -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <code class="fs-3 text-primary">{{ formula.symbol }}</code>
+                    <span class="text-muted mx-2">—</span>
+                    {{ formula.name }}
+                </h4>
+                <div class="btn-group">
+                    {% if not formula.is_input %}
+                    <a href="{% url 'calculator:formula_calculate' formula.pk %}" class="btn btn-success">
+                        <i class="bi bi-play-fill"></i> Вычислить
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'formulas:formula_edit' formula.pk %}" class="btn btn-outline-primary">
+                        <i class="bi bi-pencil"></i> Редактировать
+                    </a>
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <!-- Тип и категория -->
+                <div class="mb-4">
+                    {% if formula.is_input %}
+                    <span class="badge bg-info fs-6">Входной параметр</span>
+                    {% else %}
+                    <span class="badge bg-success fs-6">Вычисляемая формула</span>
+                    {% endif %}
+                    
+                    {% if formula.category %}
+                    <span class="badge bg-secondary fs-6 ms-2">{{ formula.category.name }}</span>
+                    {% endif %}
+                    
+                    {% if formula.unit %}
+                    <span class="badge bg-light text-dark fs-6 ms-2">{{ formula.unit }}</span>
+                    {% endif %}
+                </div>
+                
+                <!-- Формула -->
+                {% if not formula.is_input %}
+                <div class="mb-4">
+                    <h5>Формула:</h5>
+                    <div class="p-4 bg-light rounded">
+                        <code class="fs-4">{{ formula.symbol }} = {{ formula.expression }}</code>
+                    </div>
+                    <div class="mt-2 text-muted">
+                        <strong>Красивый вид:</strong><br>
+                        <span class="fs-5">{{ formula.symbol }} = {{ formula.get_display_expression }}</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="mb-4">
+                    <h5>Значение по умолчанию:</h5>
+                    <div class="p-3 bg-light rounded">
+                        {% if formula.default_value is not None %}
+                        <code class="fs-4">{{ formula.symbol }} = {{ formula.default_value }} {{ formula.unit }}</code>
+                        {% else %}
+                        <span class="text-muted">Не задано</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Описание -->
+                {% if formula.description %}
+                <div class="mb-4">
+                    <h5>Описание:</h5>
+                    <p>{{ formula.description|linebreaks }}</p>
+                </div>
+                {% endif %}
+                
+                <!-- Переменные -->
+                {% if extracted_variables %}
+                <div class="mb-4">
+                    <h5>Переменные в формуле:</h5>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for var in extracted_variables %}
+                        <span class="badge bg-primary fs-6">{{ var }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="card-footer text-muted">
+                <small>
+                    Создано: {{ formula.created_at|date:"d.m.Y H:i" }} |
+                    Изменено: {{ formula.updated_at|date:"d.m.Y H:i" }}
+                </small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Зависимости -->
+        {% if dependencies %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-diagram-3"></i> Зависит от</h5>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for dep in dependencies %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <a href="{% url 'formulas:formula_detail' dep.pk %}" class="text-decoration-none">
+                            <code>{{ dep.symbol }}</code>
+                        </a>
+                        <br><small class="text-muted">{{ dep.name }}</small>
+                    </div>
+                    <span class="badge bg-{% if dep.is_input %}info{% else %}success{% endif %}">
+                        {% if dep.is_input %}Ввод{% else %}Расчёт{% endif %}
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        <!-- Используется в -->
+        {% if used_in %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-arrow-up-right"></i> Используется в</h5>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for formula in used_in %}
+                <li class="list-group-item">
+                    <a href="{% url 'formulas:formula_detail' formula.pk %}" class="text-decoration-none">
+                        <code>{{ formula.symbol }}</code>
+                    </a>
+                    — {{ formula.name }}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        <!-- Действия -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-gear"></i> Действия</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                {% if not formula.is_input %}
+                <a href="{% url 'calculator:formula_calculate' formula.pk %}" class="list-group-item list-group-item-action list-group-item-success">
+                    <i class="bi bi-play-fill"></i> Вычислить
+                </a>
+                {% endif %}
+                <a href="{% url 'formulas:formula_edit' formula.pk %}" class="list-group-item list-group-item-action">
+                    <i class="bi bi-pencil"></i> Редактировать
+                </a>
+                <a href="{% url 'formulas:formula_delete' formula.pk %}" class="list-group-item list-group-item-action list-group-item-danger">
+                    <i class="bi bi-trash"></i> Удалить
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

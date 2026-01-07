@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}Удаление формулы{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Подтверждение удаления</h4>
+            </div>
+            <div class="card-body">
+                <p class="lead">Вы уверены, что хотите удалить формулу?</p>
+                
+                <div class="alert alert-warning">
+                    <strong><code>{{ object.symbol }}</code></strong> — {{ object.name }}
+                    {% if object.expression %}
+                    <br><code class="text-muted">{{ object.expression }}</code>
+                    {% endif %}
+                </div>
+                
+                <p class="text-danger">
+                    <i class="bi bi-exclamation-circle"></i>
+                    Это действие нельзя отменить!
+                </p>
+            </div>
+            <div class="card-footer d-flex justify-content-between">
+                <a href="{% url 'formulas:formula_detail' object.pk %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Отмена
+                </a>
+                <form method="POST">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Удалить
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

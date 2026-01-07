@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+
+{% block title %}Формулы - Калькулятор{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="bi bi-list-ul"></i> Формулы</h1>
+    </div>
+    <div class="col-auto">
+        <a href="{% url 'formulas:formula_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Добавить формулу
+        </a>
+    </div>
+</div>
+
+<!-- Фильтры и поиск -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Поиск</label>
+                <input type="text" name="search" class="form-control" 
+                       placeholder="Символ, название, описание..." 
+                       value="{{ search }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Категория</label>
+                <select name="category" class="form-select">
+                    <option value="">Все категории</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" 
+                            {% if selected_category == category.id|stringformat:"i" %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Тип</label>
+                <select name="is_input" class="form-select">
+                    <option value="">Все</option>
+                    <option value="1" {% if request.GET.is_input == '1' %}selected{% endif %}>
+                        Входные параметры
+                    </option>
+                    <option value="0" {% if request.GET.is_input == '0' %}selected{% endif %}>
+                        Вычисляемые
+                    </option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-search"></i> Найти
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Результаты -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Найдено: {{ page_obj.paginator.count }} из {{ total_count }}</span>
+        <div class="btn-group btn-group-sm">
+            <button class="btn btn-outline-secondary active" data-view="table">
+                <i class="bi bi-list"></i>
+            </button>
+            <button class="btn btn-outline-secondary" data-view="cards">
+                <i class="bi bi-grid"></i>
+            </button>
+        </div>
+    </div>
+    
+    <div class="card-body p-0">
+        {% if formulas %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 120px;">Символ</th>
+                        <th>Название</th>
+                        <th>Выражение</th>
+                        <th style="width: 150px;">Категория</th>
+                        <th style="width: 80px;">Тип</th>
+                        <th style="width: 150px;">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for formula in formulas %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'formulas:formula_detail' formula.pk %}" 
+                               class="text-decoration-none">
+                                <code class="fs-5 text-primary">{{ formula.symbol }}</code>
+                            </a>
+                            {% if formula.unit %}
+                            <br><small class="text-muted">{{ formula.unit }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ formula.name }}</strong>
+                            {% if formula.description %}
+                            <br><small class="text-muted">{{ formula.description|truncatechars:60 }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if formula.is_input %}
+                            <span class="text-muted fst-italic">Входной параметр</span>
+                            {% if formula.default_value is not None %}
+                            <br><small>По умолчанию: {{ formula.default_value }}</small>
+                            {% endif %}
+                            {% else %}
+                            <code class="formula-expression">{{ formula.expression|truncatechars:40 }}</code>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if formula.category %}
+                            <span class="badge bg-secondary">{{ formula.category.name }}</span>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if formula.is_input %}
+                            <span class="badge bg-info">Ввод</span>
+                            {% else %}
+                            <span class="badge bg-success">Расчёт</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                {% if not formula.is_input %}
+                                <a href="{% url 'calculator:formula_calculate' formula.pk %}" 
+                                   class="btn btn-success" title="Вычислить">
+                                    <i class="bi bi-play-fill"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'formulas:formula_detail' formula.pk %}" 
+                                   class="btn btn-outline-primary" title="Просмотр">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'formulas:formula_edit' formula.pk %}" 
+                                   class="btn btn-outline-secondary" title="Редактировать">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{% url 'formulas:formula_delete' formula.pk %}" 
+                                   class="btn btn-outline-danger" title="Удалить">
+                                    <i class="bi bi-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Пагинация -->
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer">
+            <nav>
+                <ul class="pagination mb-0 justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">
+                            <i class="bi bi-chevron-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}{% if search %}&search={{ search }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">{{ num }}</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}">
+                            <i class="bi bi-chevron-double-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-search fs-1 text-muted"></i>
+            <p class="text-muted mt-2">Формулы не найдены</p>
+            {% if search or selected_category %}
+            <a href="{% url 'formulas:formula_list' %}" class="btn btn-outline-primary">
+                Сбросить фильтры
+            </a>
+            {% else %}
+            <a href="{% url 'formulas:formula_create' %}" class="btn btn-primary">
+                <i class="bi bi-plus"></i> Создать первую формулу
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

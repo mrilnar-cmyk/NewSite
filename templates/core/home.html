@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block title %}Главная - Калькулятор формул{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="bi bi-calculator"></i> Калькулятор формул
+        </h1>
+    </div>
+</div>
+
+<!-- Статистика -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-subtitle mb-2">Всего формул</h6>
+                        <h2 class="card-title mb-0">{{ formula_count }}</h2>
+                    </div>
+                    <i class="bi bi-calculator-fill fs-1 opacity-50"></i>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-0">
+                <a href="{% url 'formulas:formula_list' %}" class="text-white text-decoration-none">
+                    Перейти <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-success text-white h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-subtitle mb-2">Категорий</h6>
+                        <h2 class="card-title mb-0">{{ category_count }}</h2>
+                    </div>
+                    <i class="bi bi-folder-fill fs-1 opacity-50"></i>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-0">
+                <a href="{% url 'formulas:category_list' %}" class="text-white text-decoration-none">
+                    Перейти <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-info text-white h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-subtitle mb-2">Входных параметров</h6>
+                        <h2 class="card-title mb-0">{{ input_formulas }}</h2>
+                    </div>
+                    <i class="bi bi-input-cursor-text fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-subtitle mb-2">Вычисляемых</h6>
+                        <h2 class="card-title mb-0">{{ calculated_formulas }}</h2>
+                    </div>
+                    <i class="bi bi-gear-fill fs-1 opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Быстрые действия -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-lightning"></i> Быстрые действия</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <a href="{% url 'formulas:formula_create' %}" class="btn btn-outline-primary w-100 py-3">
+                            <i class="bi bi-plus-circle fs-4 d-block mb-2"></i>
+                            Создать формулу
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="{% url 'calculator:workspace' %}" class="btn btn-outline-success w-100 py-3">
+                            <i class="bi bi-cpu fs-4 d-block mb-2"></i>
+                            Открыть калькулятор
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="{% url 'formulas:category_create' %}" class="btn btn-outline-secondary w-100 py-3">
+                            <i class="bi bi-folder-plus fs-4 d-block mb-2"></i>
+                            Создать категорию
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Недавние формулы -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Недавние формулы</h5>
+                <a href="{% url 'formulas:formula_list' %}" class="btn btn-sm btn-outline-primary">
+                    Все формулы
+                </a>
+            </div>
+            <div class="card-body">
+                {% if recent_formulas %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Символ</th>
+                                <th>Название</th>
+                                <th>Выражение</th>
+                                <th>Категория</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for formula in recent_formulas %}
+                            <tr>
+                                <td>
+                                    <code class="fs-5">{{ formula.symbol }}</code>
+                                </td>
+                                <td>{{ formula.name }}</td>
+                                <td>
+                                    <code class="text-muted">{{ formula.expression|truncatechars:50 }}</code>
+                                </td>
+                                <td>
+                                    {% if formula.category %}
+                                    <span class="badge bg-secondary">{{ formula.category.name }}</span>
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'calculator:formula_calculate' formula.pk %}" 
+                                           class="btn btn-success" title="Вычислить">
+                                            <i class="bi bi-play-fill"></i>
+                                        </a>
+                                        <a href="{% url 'formulas:formula_detail' formula.pk %}" 
+                                           class="btn btn-outline-primary" title="Просмотр">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a href="{% url 'formulas:formula_edit' formula.pk %}" 
+                                           class="btn btn-outline-secondary" title="Редактировать">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox fs-1 text-muted"></i>
+                    <p class="text-muted mt-2">Формулы ещё не созданы</p>
+                    <a href="{% url 'formulas:formula_create' %}" class="btn btn-primary">
+                        <i class="bi bi-plus"></i> Создать первую формулу
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

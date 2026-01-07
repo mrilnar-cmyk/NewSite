@@ -1,0 +1,229 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load formula_tags %}
+
+{% block title %}Вычисление всех формул{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="bi bi-calculator"></i> Вычисление всех формул</h1>
+        <p class="text-muted">Введите входные параметры — все зависимые формулы вычислятся автоматически</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Входные параметры -->
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 80px;">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-input-cursor-text"></i> Входные параметры</h5>
+            </div>
+            <div class="card-body" style="max-height: 60vh; overflow-y: auto;">
+                <form id="input-form">
+                    {% for formula in input_formulas %}
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <code class="fs-5">{{ formula.symbol }}</code>
+                            <small class="text-muted">— {{ formula.name }}</small>
+                        </label>
+                        <div class="input-group">
+                            <input type="number" step="any" 
+                                   class="form-control input-variable"
+                                   id="input-{{ formula.symbol }}"
+                                   data-symbol="{{ formula.symbol }}"
+                                   value="{% if session_values %}{{ session_values|get_item:formula.symbol }}{% elif formula.default_value %}{{ formula.default_value }}{% endif %}"
+                                   placeholder="{{ formula.default_value|default:'Введите значение' }}">
+                            {% if formula.unit %}
+                            <span class="input-group-text">{{ formula.unit }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted">Нет входных параметров. <a href="{% url 'formulas:formula_create' %}">Создайте формулу</a> с типом "Входной параметр".</p>
+                    {% endfor %}
+                </form>
+            </div>
+            <div class="card-footer">
+                <button type="button" id="calculate-all-btn" class="btn btn-success w-100">
+                    <i class="bi bi-play-fill"></i> Вычислить всё
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Результаты -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-list-check"></i> Результаты</h5>
+                <span class="badge bg-secondary" id="results-count">0 формул</span>
+            </div>
+            <div class="card-body p-0">
+                <div id="results-placeholder" class="text-center py-5">
+                    <i class="bi bi-arrow-left-circle fs-1 text-muted"></i>
+                    <p class="text-muted mt-2">Введите параметры и нажмите "Вычислить всё"</p>
+                </div>
+
+                <div id="results-container" style="display: none;">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Символ</th>
+                                <th>Название</th>
+                                <th>Формула</th>
+                                <th>Результат</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ошибки -->
+        <div class="card mt-4" id="errors-card" style="display: none;">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Ошибки</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush" id="errors-list">
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const calculateBtn = document.getElementById('calculate-all-btn');
+    const resultsContainer = document.getElementById('results-container');
+    const resultsPlaceholder = document.getElementById('results-placeholder');
+    const resultsTbody = document.getElementById('results-tbody');
+    const resultsCount = document.getElementById('results-count');
+    const errorsCard = document.getElementById('errors-card');
+    const errorsList = document.getElementById('errors-list');
+
+    // Данные о формулах
+    const formulaData = {
+        {% for f in all_formulas %}
+        '{{ f.symbol }}': {
+            name: '{{ f.name|escapejs }}',
+            expression: '{{ f.expression|escapejs }}',
+            unit: '{{ f.unit|escapejs }}',
+            is_input: {{ f.is_input|yesno:"true,false" }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    };
+
+    calculateBtn.addEventListener('click', async function() {
+        // Собираем значения
+        const values = {};
+        document.querySelectorAll('.input-variable').forEach(input => {
+            const symbol = input.dataset.symbol;
+            if (input.value.trim() !== '') {
+                values[symbol] = input.value;
+            }
+        });
+
+        // Показываем загрузку
+        calculateBtn.disabled = true;
+        calculateBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Вычисление...';
+
+        try {
+            const response = await fetch('{% url "calculator:calculate_all" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ values })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                displayResults(data.results);
+            } else {
+                alert('Ошибка: ' + data.error);
+            }
+        } catch (error) {
+            alert('Ошибка соединения: ' + error);
+        } finally {
+            calculateBtn.disabled = false;
+            calculateBtn.innerHTML = '<i class="bi bi-play-fill"></i> Вычислить всё';
+        }
+    });
+
+    function displayResults(results) {
+        resultsPlaceholder.style.display = 'none';
+        resultsContainer.style.display = 'block';
+
+        let html = '';
+        let successCount = 0;
+        let errors = [];
+
+        // Сортируем: сначала входные, потом вычисляемые
+        const sortedSymbols = Object.keys(results).sort((a, b) => {
+            const aInput = formulaData[a]?.is_input ? 0 : 1;
+            const bInput = formulaData[b]?.is_input ? 0 : 1;
+            return aInput - bInput;
+        });
+
+        for (const symbol of sortedSymbols) {
+            const result = results[symbol];
+            const info = formulaData[symbol] || {};
+
+            if (result.success) {
+                successCount++;
+                let value = result.value;
+                if (typeof value === 'number') {
+                    // Форматируем число
+                    value = value.toFixed(4).replace(/\.?0+$/, '');
+                }
+
+                html += `
+                    <tr>
+                        <td><code class="fs-5 text-primary">${symbol}</code></td>
+                        <td>${info.name || ''}</td>
+                        <td><code class="text-muted">${result.expression || ''}</code></td>
+                        <td>
+                            <strong class="text-success">${value}</strong>
+                            ${info.unit ? '<small class="text-muted ms-1">' + info.unit + '</small>' : ''}
+                        </td>
+                    </tr>
+                `;
+            } else {
+                errors.push({ symbol, error: result.error });
+                html += `
+                    <tr class="table-danger">
+                        <td><code class="fs-5">${symbol}</code></td>
+                        <td>${info.name || ''}</td>
+                        <td><code class="text-muted">${result.expression || ''}</code></td>
+                        <td><span class="text-danger"><i class="bi bi-x-circle"></i> ${result.error || 'Ошибка'}</span></td>
+                    </tr>
+                `;
+            }
+        }
+        
+        resultsTbody.innerHTML = html;
+        resultsCount.textContent = successCount + ' из ' + Object.keys(results).length + ' формул';
+        
+        // Показываем ошибки
+        if (errors.length > 0) {
+            errorsCard.style.display = 'block';
+            errorsList.innerHTML = errors.map(e => 
+                `<li class="list-group-item list-group-item-danger">
+                    <code>${e.symbol}</code>: ${e.error}
+                </li>`
+            ).join('');
+        } else {
+            errorsCard.style.display = 'none';
+        }
+    }
+});
+</script>
+{% endblock %}
