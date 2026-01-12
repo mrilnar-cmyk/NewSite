@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}Новый график{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="bi bi-graph-up"></i> Новый график</h4>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Название графика</label>
+                        {{ form.name }}
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Формула (ось Y)</label>
+                            {{ form.formula }}
+                            <div class="form-text">Какую формулу вычислять</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Переменная (ось X)</label>
+                            {{ form.x_variable }}
+                            <div class="form-text">Какую переменную изменять</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">X минимум</label>
+                            {{ form.x_min }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">X максимум</label>
+                            {{ form.x_max }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Количество точек</label>
+                            {{ form.x_steps }}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Тип графика</label>
+                        {{ form.chart_type }}
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <a href="{% url 'formulas:chart_list' %}" class="btn btn-outline-secondary">Отмена</a>
+                    <button type="submit" class="btn btn-primary">Создать</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% load formula_tags %}
+
+<!-- Строка категории -->
+<tr class="{% if level == 0 %}table-secondary{% endif %}">
+    <td style="padding-left: {{ level|add:1 }}rem;">
+        {% if level > 0 %}
+        <span class="text-muted">{% for i in "x"|rjust:level %}└─{% endfor %}</span>
+        {% endif %}
+        
+        {% if level == 0 %}
+        <i class="bi bi-folder-fill text-warning"></i>
+        <strong>{{ category.name }}</strong>
+        {% else %}
+        <i class="bi bi-folder text-secondary"></i>
+        {{ category.name }}
+        {% endif %}
+    </td>
+    <td>{{ category.description|truncatechars:40|default:"—" }}</td>
+    <td>
+        <span class="badge {% if level == 0 %}bg-primary{% else %}bg-secondary{% endif %}">
+            {{ category.formulas.count }}
+        </span>
+    </td>
+    <td>{{ category.order }}</td>
+    <td>
+        <div class="btn-group btn-group-sm">
+            <a href="{% url 'formulas:formula_list' %}?category={{ category.pk }}" 
+               class="btn btn-outline-primary" title="Формулы">
+                <i class="bi bi-list"></i>
+            </a>
+            <a href="{% url 'formulas:category_edit' category.pk %}" 
+               class="btn btn-outline-secondary" title="Редактировать">
+                <i class="bi bi-pencil"></i>
+            </a>
+            <a href="{% url 'formulas:category_delete' category.pk %}" 
+               class="btn btn-outline-danger" title="Удалить">
+                <i class="bi bi-trash"></i>
+            </a>
+        </div>
+    </td>
+</tr>
+
+<!-- Рекурсивно выводим подкатегории -->
+{% for child in category.children.all %}
+{% include 'formulas/_category_row.html' with category=child level=level|add:1 %}
+{% endfor %}

@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ chart.name }}{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1>{{ chart.name }}</h1>
+        <p class="text-muted">
+            <code>{{ chart.formula.symbol }}</code> от <code>{{ chart.x_variable }}</code>
+            ({{ chart.x_min }} — {{ chart.x_max }})
+        </p>
+    </div>
+    <div class="col-auto">
+        <a href="{% url 'formulas:chart_list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> К списку
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Параметры -->
+    <div class="col-lg-3">
+        <div class="card sticky-top" style="top: 80px;">
+            <div class="card-header">
+                <h5 class="mb-0">Параметры</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">
+                    Введите значения других переменных, которые остаются постоянными.
+                </p>
+                
+                <form id="chart-params-form">
+                    {% for formula in input_formulas %}
+                    {% if formula.symbol != chart.x_variable %}
+                    <div class="mb-3">
+                        <label class="form-label">
+                            <code>{{ formula.symbol }}</code>
+                            <small class="text-muted">{{ formula.name }}</small>
+                        </label>
+                        <input type="number" step="any"
+                               class="form-control chart-param"
+                               data-symbol="{{ formula.symbol }}"
+                               value="{{ formula.default_value|default:'' }}"
+                               placeholder="{{ formula.default_value|default:'Значение' }}">
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </form>
+
+                <button type="button" id="update-chart-btn" class="btn btn-primary w-100">
+                    <i class="bi bi-arrow-repeat"></i> Обновить график
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- График -->
+    <div class="col-lg-9">
+        <div class="card">
+            <div class="card-body">
+                <div id="chart-container" style="height: 500px;">
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2">Загрузка графика...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Таблица значений -->
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between">
+                <h5 class="mb-0">Таблица значений</h5>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="toggle-table-btn">
+                    <i class="bi bi-table"></i> Показать/Скрыть
+                </button>
+            </div>
+            <div class="card-body p-0" id="table-container" style="display: none;">
+                <div class="table-responsive" style="max-height: 300px;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>{{ chart.x_variable }}</th>
+                                <th>{{ chart.formula.symbol }}</th>
+                            </tr>
+                        </thead>
+                        <tbody id="values-table">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const chartId = {{ chart.pk }};
+const chartUrl = '{% url "formulas:chart_data" chart.pk %}';
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadChart();
+
+    document.getElementById('update-chart-btn').addEventListener('click', loadChart);
+
+    document.getElementById('toggle-table-btn').addEventListener('click', function() {
+        const table = document.getElementById('table-container');
+        table.style.display = table.style.display === 'none' ? 'block' : 'none';
+    });
+});
+
+async function loadChart() {
+    const btn = document.getElementById('update-chart-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Загрузка...';
+
+    // Собираем параметры
+    const values = {};
+    document.querySelectorAll('.chart-param').forEach(input => {
+        const symbol = input.dataset.symbol;
+        if (input.value.trim() !== '') {
+            values[symbol] = input.value;
+        }
+    });
+
+    try {
+        const response = await fetch(chartUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ values })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            renderChart(data);
+            renderTable(data);
+        } else {
+            document.getElementById('chart-container').innerHTML =
+                `<div class="alert alert-danger">Ошибка: ${data.error}</div>`;
+        }
+    } catch (error) {
+        document.getElementById('chart-container').innerHTML =
+            `<div class="alert alert-danger">Ошибка соединения: ${error}</div>`;
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Обновить график';
+    }
+}
+
+function renderChart(data) {
+    const trace = {
+        x: data.x_values,
+        y: data.y_values,
+        type: data.chart_type === 'bar' ? 'bar' : 'scatter',
+        mode: data.chart_type === 'scatter' ? 'markers' : 'lines+markers',
+        name: data.y_label,
+        line: { color: '#0d6efd', width: 2 },
+        marker: { color: '#0d6efd', size: 6 }
+    };
+
+    const layout = {
+        title: data.title,
+        xaxis: { title: data.x_label },
+        yaxis: { title: data.y_label },
+        showlegend: false,
+        margin: { t: 50, b: 50, l: 60, r: 30 }
+    };
+
+    const config = {
+        responsive: true,
+        displayModeBar: true,
+        modeBarButtonsToRemove: ['lasso2d', 'select2d']
+    };
+
+    Plotly.newPlot('chart-container', [trace], layout, config);
+}
+
+function renderTable(data) {
+    let html = '';
+    for (let i = 0; i < data.x_values.length; i++) {
+        const y = data.y_values[i];
+        html += `<tr>
+            <td>${data.x_values[i]}</td>
+            <td>${y !== null ? y.toFixed(4) : '—'}</td>
+        </tr>`;
+    }
+    document.getElementById('values-table').innerHTML = html;
+}
+</script>
+{% endblock %}
