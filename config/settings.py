@@ -78,6 +78,16 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Кастомная модель пользователя
+AUTH_USER_MODEL = 'core.User'
+
+# URL для редиректов
+LOGIN_URL = 'core:login'
+LOGIN_REDIRECT_URL = 'core:dashboard'
+LOGOUT_REDIRECT_URL = 'core:home'
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
 # Настройки для формул
 FORMULA_SETTINGS = {
     'ANGLE_UNIT': 'degrees',  # Углы в градусах

@@ -16,6 +16,19 @@ urlpatterns = [
     path('create/', views.FormulaCreateView.as_view(), name='formula_create'),
     path('<int:pk>/edit/', views.FormulaUpdateView.as_view(), name='formula_edit'),
     path('<int:pk>/delete/', views.FormulaDeleteView.as_view(), name='formula_delete'),
+    path('history/', views.FormulaHistoryListView.as_view(), name='history_list'),
+    path('history/<int:pk>/', views.FormulaHistoryDetailView.as_view(), name='history_detail'),
+
+    # Графики
+    path('charts/', views.ChartListView.as_view(), name='chart_list'),
+    path('charts/create/', views.ChartCreateView.as_view(), name='chart_create'),
+    path('charts/<int:pk>/', views.ChartDetailView.as_view(), name='chart_detail'),
+    path('charts/<int:pk>/data/', views.ChartDataView.as_view(), name='chart_data'),
+    path('charts/<int:pk>/delete/', views.ChartDeleteView.as_view(), name='chart_delete'),
+    path('charts/<int:pk>/edit/', views.ChartUpdateView.as_view(), name='chart_edit'),
+
+    # Экспорт
+    path('export/', views.UnifiedExportView.as_view(), name='export'),
 
     # API
     path('api/parse/', views.ParseFormulaView.as_view(), name='api_parse'),

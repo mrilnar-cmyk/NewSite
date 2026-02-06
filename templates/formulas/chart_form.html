@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% load formula_tags %}
+
+{% block title %}{% if form.instance.pk %}Редактирование{% else %}Новый{% endif %} график{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="bi bi-graph-up"></i>
+                    {% if form.instance.pk %}Редактирование графика{% else %}Новый график{% endif %}
+                </h4>
+            </div>
+            <form method="POST" id="chart-form">
+                {% csrf_token %}
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Название графика</label>
+                        {{ form.name }}
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Формула (ось Y)</label>
+                            {{ form.formula }}
+                            <div class="form-text">Какую формулу вычислять</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Переменная (ось X)</label>
+                            {{ form.x_variable }}
+                            <div class="form-text">Какую переменную изменять</div>
+                        </div>
+                    </div>
+
+                    <!-- Блок с информацией о формуле -->
+                    <div class="alert alert-info mb-3" id="formula-info" style="display: none;">
+                        <h6><i class="bi bi-info-circle"></i> Информация о формуле:</h6>
+                        <div id="formula-expression">
+                            <strong>Выражение:</strong> <code id="expr-text"></code>
+                        </div>
+                        <div id="formula-variables" class="mt-2">
+                            <strong>Переменные:</strong> <span id="vars-text"></span>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="bi bi-lightbulb"></i>
+                                Выберите одну из переменных для оси X
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">X минимум</label>
+                            {{ form.x_min }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">X максимум</label>
+                            {{ form.x_max }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Количество точек</label>
+                            {{ form.x_steps }}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Тип графика</label>
+                        {{ form.chart_type }}
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <a href="{% url 'formulas:chart_list' %}" class="btn btn-outline-secondary">Отмена</a>
+                    <button type="submit" class="btn btn-primary">
+                        {% if form.instance.pk %}Сохранить{% else %}Создать{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Данные о формулах для JavaScript -->
+<script>
+const formulaData = {
+    {% for formula in formulas %}
+    '{{ formula.pk }}': {
+        symbol: '{{ formula.symbol }}',
+        expression: '{{ formula.expression|escapejs }}',
+        variables: [{% for var in formula.variables_list %}'{{ var }}'{% if not forloop.last %}, {% endif %}{% endfor %}]
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+};
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var formulaSelect = document.getElementById('id_formula');
+    var formulaInfo = document.getElementById('formula-info');
+    var exprText = document.getElementById('expr-text');
+    var varsText = document.getElementById('vars-text');
+    var xVariableInput = document.getElementById('id_x_variable');
+
+    function updateFormulaInfo() {
+        var selectedId = formulaSelect.value;
+
+        if (selectedId && formulaData[selectedId]) {
+            var data = formulaData[selectedId];
+
+            exprText.textContent = data.symbol + ' = ' + data.expression;
+
+            if (data.variables.length > 0) {
+                var varsHtml = data.variables.map(function(v) {
+                    return '<code class="me-2 cursor-pointer" style="cursor:pointer;" onclick="document.getElementById(\'id_x_variable\').value=\'' + v + '\'">' + v + '</code>';
+                }).join(' ');
+                varsText.innerHTML = varsHtml + ' <small class="text-muted">(кликните чтобы выбрать)</small>';
+            } else {
+                varsText.textContent = 'Нет переменных';
+            }
+
+            formulaInfo.style.display = 'block';
+        } else {
+            formulaInfo.style.display = 'none';
+        }
+    }
+
+    formulaSelect.addEventListener('change', updateFormulaInfo);
+
+    // Показать при загрузке если уже выбрана формула
+    updateFormulaInfo();
+});
+</script>
+{% endblock %}

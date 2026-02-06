@@ -1,265 +1,700 @@
-/* ===================================
-   ОСНОВНЫЕ СТИЛИ
-   =================================== */
-
 :root {
-    --primary-color: #0d6efd;
-    --success-color: #198754;
-    --warning-color: #ffc107;
-    --danger-color: #dc3545;
-    --light-bg: #f8f9fa;
-    --border-color: #dee2e6;
+    /*палитра - глубокий синий*/
+    --primary: #1a365d;
+    --primary-light: #2c5282;
+    --primary-dark: #0f2340;
+    --accent: #ed8936;
+    --accent-light: #f6ad55;
+    --accent-dark: #c05621;
+
+    /* Нейтральные тона */
+    --bg-light: #f7fafc;
+    --bg-dark: #1a202c;
+    --text-primary: #2d3748;
+    --text-secondary: #718096;
+    --text-light: #a0aec0;
+
+    /* Семантические цвета */
+    --success: #38a169;
+    --warning: #d69e2e;
+    --danger: #e53e3e;
+    --info: #3182ce;
+
+    /* Границы и тени */
+    --border-color: #e2e8f0;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.12);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+    --shadow-lg: 0 10px 25px rgba(0,0,0,0.15);
+
+    /* Типографика */
+    --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --font-math: 'Cambria Math', 'STIX Two Math', serif;
 }
+
+/*    БАЗОВЫЕ СТИЛИ     */
 
 body {
+    font-family: var(--font-primary);
+    background-color: var(--bg-light);
+    color: var(--text-primary);
+    min-height: 100vh;
+}
+
+a {
+    color: var(--primary);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+a:hover {
+    color: var(--accent);
+}
+
+code {
+    font-family: var(--font-mono);
+    background: #edf2f7;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-size: 0.9em;
+    color: var(--primary);
+}
+
+/*    ЛЕНДИНГ (ГЛАВНАЯ СТРАНИЦА)     */
+
+.landing-hero {
     min-height: 100vh;
     display: flex;
-    flex-direction: column;
-    background-color: #f5f5f5;
+    align-items: center;
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 50%, var(--primary-light) 100%);
+    position: relative;
+    overflow: hidden;
 }
 
-main {
-    flex: 1;
+.landing-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 }
 
-/* ===================================
-   НАВИГАЦИЯ
-   =================================== */
+.landing-hero .container {
+    position: relative;
+    z-index: 1;
+}
 
-.navbar-brand {
+.hero-title {
+    font-size: 3.5rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 1.5rem;
+    line-height: 1.2;
+}
+
+.hero-subtitle {
+    font-size: 1.25rem;
+    color: rgba(255,255,255,0.85);
+    margin-bottom: 2rem;
+    max-width: 600px;
+}
+
+.hero-formula {
+    font-family: var(--font-math);
+    font-size: 1.5rem;
+    color: var(--accent-light);
+    background: rgba(255,255,255,0.1);
+    padding: 1rem 2rem;
+    border-radius: 0.5rem;
+    display: inline-block;
+    margin-bottom: 2rem;
+    border-left: 4px solid var(--accent);
+}
+
+.btn-hero {
+    padding: 1rem 2.5rem;
+    font-size: 1.1rem;
     font-weight: 600;
-    font-size: 1.4rem;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
 }
 
-.navbar-brand i {
-    margin-right: 0.5rem;
+.btn-hero-primary {
+    background: var(--accent);
+    color: white;
+    border: none;
 }
 
-/* ===================================
-   КАРТОЧКИ
-   =================================== */
-
-.card {
-    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-    border: 1px solid var(--border-color);
+.btn-hero-primary:hover {
+    background: var(--accent-dark);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
 }
 
-.card-header {
-    background-color: white;
-    border-bottom: 1px solid var(--border-color);
-    font-weight: 500;
+.btn-hero-outline {
+    background: transparent;
+    color: white;
+    border: 2px solid rgba(255,255,255,0.5);
 }
 
-/* ===================================
-   ФОРМУЛЫ
-   =================================== */
-
-/* Отображение формулы */
-.formula-display {
-    font-family: 'Cambria Math', 'Times New Roman', serif;
-    font-size: 1.2rem;
+.btn-hero-outline:hover {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border-color: white;
 }
 
-.formula-display code {
-    background: none;
-    color: inherit;
-    font-size: inherit;
+/* Особенности на лендинге */
+.features-section {
+    padding: 5rem 0;
+    background: white;
 }
 
-/* Выражение формулы в таблице */
-.formula-expression {
-    font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 0.9rem;
-    background-color: var(--light-bg);
-    padding: 0.2rem 0.5rem;
-    border-radius: 0.25rem;
+.feature-card {
+    text-align: center;
+    padding: 2rem;
+    border-radius: 1rem;
+    transition: all 0.3s ease;
+    height: 100%;
 }
 
-/* Предпросмотр формулы */
-#formula-preview {
-    font-family: 'Cambria Math', 'Times New Roman', serif;
-    font-size: 1.3rem;
-    min-height: 60px;
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+}
+
+.feature-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    margin: 0 auto 1.5rem;
+    font-size: 2rem;
 }
 
-/* Красивые математические символы */
-.math-symbol {
-    font-family: 'Cambria Math', serif;
+.feature-icon-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    color: white;
 }
 
-/* ===================================
-   РЕДАКТОР ФОРМУЛ
-   =================================== */
-
-#formula-toolbar {
-    flex-wrap: wrap;
-    gap: 0.25rem;
+.feature-icon-accent {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+    color: white;
 }
 
-#formula-toolbar .btn {
-    min-width: 40px;
-    font-family: 'Cambria Math', serif;
+.feature-icon-success {
+    background: linear-gradient(135deg, var(--success) 0%, #48bb78 100%);
+    color: white;
 }
 
-#formula-toolbar .btn[data-insert="sqrt()"]::before {
-    content: "√";
+/*    СТРАНИЦЫ АУТЕНТИФИКАЦИИ   */
+
+.auth-page {
+    min-height: 100vh;
+    display: flex;
 }
 
-#expression-input {
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-    font-size: 1.1rem;
+.auth-left {
+    flex: 1;
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    position: relative;
+    overflow: hidden;
 }
 
-/* Обнаруженные переменные */
-#detected-variables .badge {
-    font-size: 0.9rem;
-    margin: 0.2rem;
+.auth-left::before {
+    content: '';
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+    top: -100px;
+    right: -100px;
 }
 
-#detected-variables .variable-input {
-    background-color: #e7f1ff;
+.auth-left::after {
+    content: '';
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.03);
+    bottom: -50px;
+    left: -50px;
 }
 
-#detected-variables .variable-formula {
-    background-color: #d1e7dd;
+.auth-branding {
+    text-align: center;
+    color: white;
+    position: relative;
+    z-index: 1;
 }
 
-/* ===================================
-   КАЛЬКУЛЯТОР
-   =================================== */
-
-/* Поле ввода переменной */
-.variable-input {
-    font-family: 'Consolas', monospace;
-    font-size: 1.1rem;
+.auth-logo {
+    font-size: 4rem;
+    margin-bottom: 1rem;
 }
 
-.variable-input:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+.auth-brand-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
 }
 
-/* Результат вычисления */
-#main-result {
-    font-family: 'Cambria Math', serif;
-    font-weight: normal;
-}
-
-/* Промежуточные результаты */
-#intermediate-results code {
+.auth-brand-subtitle {
+    color: rgba(255,255,255,0.7);
     font-size: 1rem;
 }
 
-#intermediate-results .table td {
-    vertical-align: middle;
+.auth-right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    background: var(--bg-light);
 }
 
-/* Статус вычисления */
-.calc-status-success {
-    color: var(--success-color);
+.auth-form-container {
+    width: 100%;
+    max-width: 420px;
 }
 
-.calc-status-error {
-    color: var(--danger-color);
+.auth-form-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
 }
 
-.calc-status-pending {
-    color: var(--warning-color);
+.auth-form-subtitle {
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
 }
 
-/* ===================================
-   БЫСТРЫЙ КАЛЬКУЛЯТОР
-   =================================== */
-
-#quick-expression {
-    font-family: 'Consolas', monospace;
-    font-size: 1.1rem;
+.auth-divider {
+    display: flex;
+    align-items: center;
+    margin: 1.5rem 0;
+    color: var(--text-light);
 }
 
-#quick-result .alert,
-#quick-error .alert {
-    margin-bottom: 0;
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
 }
 
-#quick-result-value {
-    font-family: 'Consolas', monospace;
-    font-size: 1.2rem;
-    font-weight: bold;
+.auth-divider span {
+    padding: 0 1rem;
+    font-size: 0.875rem;
 }
 
-/* ===================================
-   СПИСОК ФОРМУЛ
-   =================================== */
-
-.formula-item {
-    transition: background-color 0.15s ease;
+/* Форма */
+.form-floating-custom {
+    position: relative;
+    margin-bottom: 1rem;
 }
 
-.formula-item:hover {
-    background-color: rgba(13, 110, 253, 0.1);
+.form-floating-custom .form-control {
+    padding: 1rem 1rem;
+    height: auto;
+    border: 2px solid var(--border-color);
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
 }
 
-.formula-item code {
-    font-size: 1.1rem;
+.form-floating-custom .form-control:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(26, 54, 93, 0.1);
 }
 
-/* Поиск в списке */
-#formula-search {
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
+.btn-auth {
+    width: 100%;
+    padding: 0.875rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
 }
 
-/* ===================================
-   АККОРДЕОН КАТЕГОРИЙ
-   =================================== */
-
-.accordion-button:not(.collapsed) {
-    background-color: rgba(13, 110, 253, 0.1);
-    color: var(--primary-color);
+.btn-auth-primary {
+    background: var(--primary);
+    border: none;
+    color: white;
 }
 
-.accordion-button .badge {
-    font-size: 0.75rem;
+.btn-auth-primary:hover {
+    background: var(--primary-light);
+    color: white;
+    transform: translateY(-1px);
 }
 
-/* ===================================
-   ТАБЛИЦЫ
-   =================================== */
+/* Адаптив для auth */
+@media (max-width: 991.98px) {
+    .auth-left {
+        display: none;
+    }
 
-.table code {
-    background-color: var(--light-bg);
-    padding: 0.15rem 0.4rem;
-    border-radius: 0.2rem;
+    .auth-right {
+        padding: 2rem 1rem;
+    }
 }
 
-.table .btn-group-sm .btn {
-    padding: 0.25rem 0.5rem;
+/*   НАВИГАЦИЯ  */
+
+.navbar-main {
+    background: white;
+    box-shadow: var(--shadow-sm);
+    padding: 0.75rem 0;
 }
 
-/* ===================================
-   БЕЙДЖИ И СТАТУСЫ
-   =================================== */
+.navbar-brand-custom {
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--primary) !important;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
 
-.badge {
+.navbar-brand-icon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.nav-link-custom {
+    color: var(--text-secondary) !important;
     font-weight: 500;
+    padding: 0.5rem 1rem !important;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease;
 }
 
-/* ===================================
-   АНИМАЦИИ
-   =================================== */
-
-.fade-in {
-    animation: fadeIn 0.3s ease-in;
+.nav-link-custom:hover,
+.nav-link-custom.active {
+    color: var(--primary) !important;
+    background: rgba(26, 54, 93, 0.08);
 }
 
-@keyframes fadeIn {
+.user-menu {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-light) 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+}
+
+/*   DASHBOARD   */
+
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.page-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.page-subtitle {
+    color: var(--text-secondary);
+}
+
+.stat-card {
+    background: white;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+    height: 100%;
+    border: 1px solid var(--border-color);
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+}
+
+.stat-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.stat-icon-primary {
+    background: rgba(26, 54, 93, 0.1);
+    color: var(--primary);
+}
+
+.stat-icon-accent {
+    background: rgba(237, 137, 54, 0.1);
+    color: var(--accent);
+}
+
+.stat-icon-success {
+    background: rgba(56, 161, 105, 0.1);
+    color: var(--success);
+}
+
+.stat-icon-info {
+    background: rgba(49, 130, 206, 0.1);
+    color: var(--info);
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+/* Карточки */
+.card-custom {
+    background: white;
+    border-radius: 1rem;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+.card-custom .card-header {
+    background: white;
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem 1.5rem;
+    font-weight: 600;
+}
+
+.card-custom .card-body {
+    padding: 1.5rem;
+}
+
+/* Quick actions */
+.quick-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: var(--bg-light);
+    border-radius: 0.75rem;
+    color: var(--text-primary);
+    transition: all 0.3s ease;
+    text-decoration: none;
+    height: 100%;
+    border: 2px solid transparent;
+}
+
+.quick-action:hover {
+    background: white;
+    color: var(--primary);
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.quick-action i {
+    font-size: 2rem;
+    margin-bottom: 0.75rem;
+    color: var(--primary);
+}
+
+/*   ТАБЛИЦЫ И СПИСКИ */
+
+.table-custom {
+    background: white;
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
+.table-custom thead th {
+    background: var(--bg-light);
+    border-bottom: 2px solid var(--border-color);
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    padding: 1rem;
+}
+
+.table-custom tbody td {
+    padding: 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.table-custom tbody tr:hover {
+    background: rgba(26, 54, 93, 0.02);
+}
+
+/*    ФОРМУЛЫ   */
+
+.formula-card {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    transition: all 0.2s ease;
+}
+
+.formula-card:hover {
+    border-color: var(--primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.formula-symbol {
+    font-family: var(--font-mono);
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.formula-expression {
+    font-family: var(--font-mono);
+    background: var(--bg-light);
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/*   КНОПКИ */
+
+.btn {
+    font-weight: 500;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.btn-primary:hover {
+    background: var(--primary-light);
+    border-color: var(--primary-light);
+}
+
+.btn-accent {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.btn-accent:hover {
+    background: var(--accent-dark);
+    border-color: var(--accent-dark);
+    color: white;
+}
+
+.btn-outline-primary {
+    color: var(--primary);
+    border-color: var(--primary);
+}
+
+.btn-outline-primary:hover {
+    background: var(--primary);
+    color: white;
+}
+
+/*   БЕЙДЖИ */
+
+.badge-primary {
+    background: var(--primary);
+}
+
+.badge-accent {
+    background: var(--accent);
+}
+
+.badge-input {
+    background: rgba(56, 161, 105, 0.15);
+    color: var(--success);
+}
+
+.badge-calc {
+    background: rgba(49, 130, 206, 0.15);
+    color: var(--info);
+}
+
+/*   FOOTER */
+
+.footer-main {
+    background: var(--primary-dark);
+    color: rgba(255,255,255,0.7);
+    padding: 2rem 0;
+    margin-top: auto;
+}
+
+.footer-main a {
+    color: rgba(255,255,255,0.7);
+}
+
+.footer-main a:hover {
+    color: var(--accent-light);
+}
+
+/*   УТИЛИТЫ    */
+
+.text-primary-custom {
+    color: var(--primary) !important;
+}
+
+.text-accent {
+    color: var(--accent) !important;
+}
+
+.bg-primary-custom {
+    background: var(--primary) !important;
+}
+
+.bg-accent {
+    background: var(--accent) !important;
+}
+
+/* Анимации */
+@keyframes fadeInUp {
     from {
         opacity: 0;
-        transform: translateY(-10px);
+        transform: translateY(20px);
     }
     to {
         opacity: 1;
@@ -267,110 +702,10 @@ main {
     }
 }
 
-/* Пульсация для загрузки */
-.pulse {
-    animation: pulse 1.5s infinite;
+.animate-fade-in-up {
+    animation: fadeInUp 0.5s ease forwards;
 }
 
-@keyframes pulse {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.5;
-    }
-}
-
-/* ===================================
-   STICKY ЭЛЕМЕНТЫ
-   =================================== */
-
-.sticky-top {
-    z-index: 1020;
-}
-
-/* Прокрутка в боковой панели */
-.card.sticky-top .card-body {
-    max-height: calc(100vh - 200px);
-    overflow-y: auto;
-}
-
-/* ===================================
-   АДАПТИВНОСТЬ
-   =================================== */
-
-@media (max-width: 991.98px) {
-    .sticky-top {
-        position: relative !important;
-        top: 0 !important;
-    }
-
-    .card.sticky-top {
-        max-height: none !important;
-    }
-}
-
-@media (max-width: 767.98px) {
-    #formula-toolbar .btn-group {
-        margin-bottom: 0.5rem;
-    }
-
-    .formula-display {
-        font-size: 1rem;
-    }
-
-    #main-result {
-        font-size: 2rem !important;
-    }
-}
-
-/* ===================================
-   УТИЛИТЫ
-   =================================== */
-
-.font-monospace {
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
-}
-
-.cursor-pointer {
-    cursor: pointer;
-}
-
-.min-h-100 {
-    min-height: 100px;
-}
-
-/* Скрытие спиннеров в input[type=number] */
-input[type=number]::-webkit-inner-spin-button,
-input[type=number]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-input[type=number] {
-    -moz-appearance: textfield;
-}
-
-/* ===================================
-   ПОДСВЕТКА СИНТАКСИСА
-   =================================== */
-
-.syntax-function {
-    color: #0d6efd;
-}
-
-.syntax-number {
-    color: #198754;
-}
-
-.syntax-operator {
-    color: #6c757d;
-}
-
-.syntax-variable {
-    color: #dc3545;
-}
-
-.syntax-constant {
-    color: #6f42c1;
-}
+.animation-delay-1 { animation-delay: 0.1s; }
+.animation-delay-2 { animation-delay: 0.2s; }
+.animation-delay-3 { animation-delay: 0.3s; }

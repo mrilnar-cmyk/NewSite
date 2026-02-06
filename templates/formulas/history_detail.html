@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+
+{% block title %}История изменения{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'formulas:history_list' %}">История</a></li>
+                <li class="breadcrumb-item active">Запись #{{ record.pk }}</li>
+            </ol>
+        </nav>
+        <h1>
+            <span class="badge bg-{{ record.get_action_color }}">{{ record.get_action_display }}</span>
+            {% if record.formula %}
+            <code>{{ record.formula.symbol }}</code>
+            {% else %}
+            <code class="text-muted">{{ record.old_values.symbol|default:"?" }}</code>
+            {% endif %}
+        </h1>
+        <p class="text-muted">{{ record.created_at|date:"d.m.Y H:i:s" }}</p>
+    </div>
+    <div class="col-auto">
+        <a href="{% url 'formulas:history_list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Назад
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Информация о формуле -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Информация</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr>
+                        <th>Действие:</th>
+                        <td>
+                            <span class="badge bg-{{ record.get_action_color }}">
+                                {{ record.get_action_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Дата:</th>
+                        <td>{{ record.created_at|date:"d.m.Y H:i:s" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Формула:</th>
+                        <td>
+                            {% if record.formula %}
+                            <a href="{% url 'formulas:formula_detail' record.formula.pk %}">
+                                <code>{{ record.formula.symbol }}</code> — {{ record.formula.name }}
+                            </a>
+                            {% else %}
+                            <span class="text-muted">Удалена</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Ссылка на формулу -->
+    <div class="col-md-6">
+        {% if record.formula %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-link"></i> Текущее состояние</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Символ:</strong> <code>{{ record.formula.symbol }}</code></p>
+                <p><strong>Название:</strong> {{ record.formula.name }}</p>
+                <p><strong>Выражение:</strong> <code>{{ record.formula.expression|default:"—" }}</code></p>
+                <a href="{% url 'formulas:formula_detail' record.formula.pk %}" class="btn btn-primary">
+                    <i class="bi bi-eye"></i> Открыть формулу
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Изменения выражения -->
+{% if record.action == 'updated' %}
+<div class="row">
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> Изменение выражения</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-danger"><i class="bi bi-dash-circle"></i> Было:</h6>
+                        <div class="p-3 bg-light rounded">
+                            <code>{{ record.old_expression|default:"(пусто)" }}</code>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-success"><i class="bi bi-plus-circle"></i> Стало:</h6>
+                        <div class="p-3 bg-light rounded">
+                            <code>{{ record.new_expression|default:"(пусто)" }}</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Изменения параметров -->
+{% if record.old_values or record.new_values %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-sliders"></i> Изменение параметров</h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Параметр</th>
+                            <th>Было</th>
+                            <th>Стало</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if record.old_values.name != record.new_values.name %}
+                        <tr>
+                            <td>Название</td>
+                            <td class="text-danger">{{ record.old_values.name|default:"—" }}</td>
+                            <td class="text-success">{{ record.new_values.name|default:"—" }}</td>
+                        </tr>
+                        {% endif %}
+                        
+                        {% if record.old_values.symbol != record.new_values.symbol %}
+                        <tr>
+                            <td>Символ</td>
+                            <td class="text-danger"><code>{{ record.old_values.symbol|default:"—" }}</code></td>
+                            <td class="text-success"><code>{{ record.new_values.symbol|default:"—" }}</code></td>
+                        </tr>
+                        {% endif %}
+                        
+                        {% if record.old_values.unit != record.new_values.unit %}
+                        <tr>
+                            <td>Единица измерения</td>
+                            <td class="text-danger">{{ record.old_values.unit|default:"—" }}</td>
+                            <td class="text-success">{{ record.new_values.unit|default:"—" }}</td>
+                        </tr>
+                        {% endif %}
+                        
+                        {% if record.old_values.is_input != record.new_values.is_input %}
+                        <tr>
+                            <td>Тип</td>
+                            <td class="text-danger">{% if record.old_values.is_input %}Входной{% else %}Вычисляемый{% endif %}</td>
+                            <td class="text-success">{% if record.new_values.is_input %}Входной{% else %}Вычисляемый{% endif %}</td>
+                        </tr>
+                        {% endif %}
+                        
+                        {% if record.old_values.default_value != record.new_values.default_value %}
+                        <tr>
+                            <td>Значение по умолчанию</td>
+                            <td class="text-danger">{{ record.old_values.default_value|default:"—" }}</td>
+                            <td class="text-success">{{ record.new_values.default_value|default:"—" }}</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Для удаленных формул -->
+{% if record.action == 'deleted' %}
+<div class="row">
+    <div class="col-12">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-trash"></i> Удалённая формула</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Символ:</strong> <code>{{ record.old_values.symbol }}</code></p>
+                <p><strong>Название:</strong> {{ record.old_values.name }}</p>
+                <p><strong>Выражение:</strong> <code>{{ record.old_expression|default:"—" }}</code></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

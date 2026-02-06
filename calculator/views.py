@@ -6,6 +6,12 @@ from django.urls import reverse_lazy
 from django.contrib import messages
 import json
 
+from django.http import HttpResponse
+from formulas.export import ExcelExporter
+from datetime import datetime
+from openpyxl.styles import Font
+from datetime import datetime
+
 from formulas.models import (
     Formula, Category, Project, Variant, VariantValue,
     VariantGenerationRule, CalculationSession, SessionValue
@@ -324,3 +330,109 @@ class VariantRecalculateView(View):
 
         messages.success(request, 'Вариант пересчитан')
         return redirect('calculator:variant_detail', pk=pk)
+
+
+
+class ExportVariantView(View):
+    """Экспорт варианта в Excel"""
+
+    def get(self, request, pk):
+        variant = get_object_or_404(Variant, pk=pk)
+
+        exporter = ExcelExporter()
+        exporter.export_variant(variant)
+
+        filename = f"variant_{variant.number}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+
+        response = HttpResponse(
+            exporter.get_file(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        return response
+
+
+class ExportProjectView(View):
+    """Экспорт проекта со всеми вариантами в один файл"""
+
+    def get(self, request, pk):
+        from formulas.export import export_full_data
+
+        project = get_object_or_404(Project, pk=pk)
+        variants = list(project.variants.prefetch_related('values', 'values__formula').order_by('number'))
+        formulas = list(Formula.objects.select_related('category').order_by('-is_input', 'symbol'))
+
+        file_data = export_full_data(
+            formulas=formulas,
+            project=project,
+            variants=variants
+        )
+
+        # Безопасное имя файла
+        safe_name = "".join(c for c in project.name if c.isalnum() or c in " _-")[:30]
+        filename = f"project_{safe_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+
+        response = HttpResponse(
+            file_data,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        return response
+
+
+class ExportVariantView(View):
+    """Экспорт одного варианта в Excel"""
+
+    def get(self, request, pk):
+        from formulas.export import ExcelExporter
+
+        variant = get_object_or_404(Variant, pk=pk)
+
+        exporter = ExcelExporter()
+
+        # Создаём лист с вариантом
+        ws = exporter.wb.create_sheet(f"Вариант {variant.number}")
+
+        # Информация
+        ws.cell(row=1, column=1, value="Проект:").font = Font(bold=True)
+        ws.cell(row=1, column=2, value=variant.project.name)
+        ws.cell(row=2, column=1, value="Вариант:").font = Font(bold=True)
+        ws.cell(row=2, column=2, value=f"№ {variant.number}")
+        ws.cell(row=3, column=1, value="Студент:").font = Font(bold=True)
+        ws.cell(row=3, column=2, value=variant.student_name or "—")
+        ws.cell(row=4, column=1, value="Дата:").font = Font(bold=True)
+        ws.cell(row=4, column=2, value=variant.created_at.strftime('%d.%m.%Y %H:%M'))
+
+        # Заголовки таблицы
+        headers = ["Символ", "Название", "Тип", "Значение", "Ед.изм."]
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=6, column=col, value=header)
+            exporter._apply_header_style(cell)
+
+        # Данные
+        values = variant.values.select_related('formula').order_by('-is_input', 'formula__symbol')
+        for row_idx, vv in enumerate(values, 7):
+            data = [
+                vv.formula.symbol,
+                vv.formula.name,
+                "Входной" if vv.is_input else "Вычислено",
+                round(vv.value, 4) if vv.value else "—",
+                vv.formula.unit or "—"
+            ]
+            for col, val in enumerate(data, 1):
+                cell = ws.cell(row=row_idx, column=col, value=val)
+                exporter._apply_cell_style(cell, is_number=(col == 4), is_input=vv.is_input)
+
+        exporter._auto_width(ws)
+
+        filename = f"variant_{variant.number}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+
+        response = HttpResponse(
+            exporter.get_file(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        return response

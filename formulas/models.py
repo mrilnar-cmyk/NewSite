@@ -370,11 +370,13 @@ class FormulaHistory(models.Model):
     """История изменений формулы"""
     formula = models.ForeignKey(
         Formula,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,  # SET_NULL вместо CASCADE
+        null=True,  # Разрешаем NULL
+        blank=True,
         related_name='history',
         verbose_name='Формула'
     )
-    action = models.CharField('Действие', max_length=50)  # created, updated, deleted
+    action = models.CharField('Действие', max_length=50)
     old_expression = models.TextField('Старое выражение', blank=True)
     new_expression = models.TextField('Новое выражение', blank=True)
     old_values = models.JSONField('Старые значения', null=True, blank=True)
@@ -387,4 +389,61 @@ class FormulaHistory(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.formula.symbol} - {self.action} ({self.created_at})"
+        symbol = self.formula.symbol if self.formula else self.old_values.get('symbol', '?')
+        return f"{symbol} - {self.action} ({self.created_at})"
+
+    def get_action_display(self):
+        actions = {
+            'created': '➕ Создана',
+            'updated': '✏️ Изменена',
+            'deleted': '🗑️ Удалена',
+        }
+        return actions.get(self.action, self.action)
+
+    def get_action_color(self):
+        colors = {
+            'created': 'success',
+            'updated': 'warning',
+            'deleted': 'danger',
+        }
+        return colors.get(self.action, 'secondary')
+
+
+class FormulaChart(models.Model):
+    """Настройки графика для формулы"""
+
+    CHART_TYPES = [
+        ('line', 'Линейный'),
+        ('scatter', 'Точечный'),
+        ('bar', 'Столбчатый'),
+    ]
+
+    name = models.CharField('Название графика', max_length=200)
+    formula = models.ForeignKey(
+        Formula,
+        on_delete=models.CASCADE,
+        related_name='charts',
+        verbose_name='Формула (Y)'
+    )
+    x_variable = models.CharField(
+        'Переменная по оси X',
+        max_length=50,
+        help_text='Символ переменной для оси X'
+    )
+    x_min = models.FloatField('X минимум')
+    x_max = models.FloatField('X максимум')
+    x_steps = models.PositiveIntegerField('Количество точек', default=50)
+    chart_type = models.CharField(
+        'Тип графика',
+        max_length=20,
+        choices=CHART_TYPES,
+        default='line'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'График'
+        verbose_name_plural = 'Графики'
+
+    def __str__(self):
+        return f"{self.name}: {self.formula.symbol}({self.x_variable})"

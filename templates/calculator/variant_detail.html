@@ -18,6 +18,9 @@
         {% endif %}
     </div>
     <div class="col-auto">
+        <a href="{% url 'calculator:export_variant' variant.pk %}" class="btn btn-success me-2">
+            <i class="bi bi-file-earmark-excel"></i> Экспорт в Excel
+        </a>
         <form method="POST" action="{% url 'calculator:variant_recalculate' variant.pk %}" class="d-inline">
             {% csrf_token %}
             <button type="submit" class="btn btn-success">
