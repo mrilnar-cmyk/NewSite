@@ -27,6 +27,41 @@ class CategoryForm(forms.ModelForm):
             }),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Исключаем саму себя и своих потомков из списка родителей
+        if self.instance and self.instance.pk:
+            # Получаем всех потомков рекурсивно
+            descendants = self._get_descendants(self.instance)
+            descendants.add(self.instance.pk)
+
+            self.fields['parent'].queryset = Category.objects.exclude(
+                pk__in=descendants
+            )
+
+    def _get_descendants(self, category):
+        """Рекурсивно получает все подкатегории"""
+        descendants = set()
+        for child in category.children.all():
+            descendants.add(child.pk)
+            descendants.update(self._get_descendants(child))
+        return descendants
+
+    def clean_parent(self):
+        parent = self.cleaned_data.get('parent')
+
+        # Проверка: нельзя быть родителем самому себе
+        if parent and self.instance and self.instance.pk:
+            if parent.pk == self.instance.pk:
+                raise forms.ValidationError('Категория не может быть родителем самой себе')
+
+            # Проверка: родитель не должен быть потомком
+            descendants = self._get_descendants(self.instance)
+            if parent.pk in descendants:
+                raise forms.ValidationError('Нельзя выбрать подкатегорию в качестве родителя')
+
+        return parent
 
 class FormulaForm(forms.ModelForm):
     """Форма для формулы"""

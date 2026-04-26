@@ -129,7 +129,12 @@
             </div>
             <div class="card-body">
                 <div class="formula-display p-3 bg-light rounded text-center">
-                    <code class="fs-4">{{ formula.symbol }} = {{ formula.expression }}</code>
+                    <code class="fs-5">{{ formula.symbol }} = {{ formula.expression }}</code>
+                </div>
+                <div class="mt-3 p-3 bg-white border rounded" style="overflow-x: auto;">
+                    <span id="formula-calculate-display"
+                        data-tex="{{ formula.get_latex_symbol }} = {{ formula.get_latex_expression }}">
+                    </span>
                 </div>
                 {% if formula.description %}
                 <p class="mt-3 mb-0 text-muted">{{ formula.description }}</p>
@@ -191,6 +196,33 @@
 </div>
 {% endblock %}
 
+
 {% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (!window.katex) return;
+    const el = document.getElementById('formula-calculate-display');
+    if (!el) return;
+    const tex = el.getAttribute('data-tex') || '';
+    try {
+        katex.render(tex, el, {
+            throwOnError: false,
+            displayMode: true,
+            output: 'html',
+        });
+        const container = el.parentElement;
+        const scale = Math.min(1, container.clientWidth / el.scrollWidth);
+        if (scale < 1) {
+            el.style.transformOrigin = 'left center';
+            el.style.transform = `scale(${scale})`;
+            el.style.display = 'block';
+            container.style.height = (el.scrollHeight * scale) + 'px';
+        }
+    } catch (e) {
+        el.textContent = tex;
+    }
+});
+</script>
 <script src="{% static 'js/formula-calculate.js' %}"></script>
+
 {% endblock %}

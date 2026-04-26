@@ -3,9 +3,8 @@
  * Общие функции и утилиты
  */
 
-// ===================================
 // CSRF Token для AJAX запросов
-// ===================================
+
 
 function getCookie(name) {
     let cookieValue = null;
@@ -128,5 +127,5 @@ document.addEventListener('DOMContentLoaded', function() {
         firstInput.focus();
     }
 
-    console.log('FormulaCalc initialized');
+    console.log('Formula initialized');
 });

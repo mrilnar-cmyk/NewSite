@@ -5,6 +5,94 @@
 {% block title %}Вычисление всех формул{% endblock %}
 
 {% block content %}
+<!-- KaTeX -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+<style>
+.stale-row {
+    background-color: #fff3cd !important;
+    transition: background-color 0.3s ease;
+}
+.stale-row:hover {
+    background-color: #ffeaa7 !important;
+}
+.stale-row td:first-child::before {
+    content: '⚠ ';
+    font-size: 0.75em;
+}
+#results-container {
+    animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.accordion-button .badge {
+    font-size: 0.75em;
+}
+.category-item[data-visible="false"] {
+    display: none;
+}
+.no-results-msg {
+    text-align: center;
+    padding: 2rem;
+    color: #6c757d;
+}
+.btn-calculated {
+    background-color: #198754;
+    border-color: #198754;
+    color: #fff;
+}
+.btn-calculated:hover {
+    background-color: #157347;
+    border-color: #146c43;
+    color: #fff;
+}
+.btn-stale {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #212529;
+}
+.btn-stale:hover {
+    background-color: #e0a800;
+    border-color: #d39e00;
+    color: #212529;
+}
+.input-changed {
+    border-color: #ffc107 !important;
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25) !important;
+}
+.input-group-wrapper.changed {
+    border-left: 4px solid #ffc107;
+    background-color: #fff9e6;
+    padding-left: 12px;
+    border-radius: 4px;
+    transition: all 0.3s ease;
+}
+.calc-changed-input {
+    background-color: #d1ecf1 !important;
+    border-color: #63d0e7 !important;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+.calc-changed-result {
+    background-color: #d1ecf1 !important;
+    transition: background-color 0.3s ease;
+}
+.dep-link {
+    cursor: pointer;
+    color: #0d6efd;
+    text-decoration: underline dotted;
+    font-weight: 500;
+    font-size: 0.8em;
+}
+.dep-link:hover {
+    color: #0a58ca;
+    text-decoration: underline;
+}
+</style>
+
 <div class="row mb-4">
     <div class="col">
         <h1><i class="bi bi-calculator"></i> Вычисление всех формул</h1>
@@ -15,23 +103,28 @@
 <div class="row">
     <!-- Входные параметры -->
     <div class="col-lg-4">
-        <div class="card sticky-top" style="top: 80px;">
+        <div class="card sticky-top" style="top: 80px; z-index: 100;">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0"><i class="bi bi-input-cursor-text"></i> Входные параметры</h5>
             </div>
             <div class="card-body" style="max-height: 60vh; overflow-y: auto;">
+                <!-- Поиск по параметрам -->
+                <div class="mb-3">
+                    <input type="text" id="input-search" class="form-control form-control-sm" placeholder="Поиск параметра...">
+                </div>
                 <form id="input-form">
                     {% for formula in input_formulas %}
-                    <div class="mb-3">
+                    <div class="mb-3 input-group-wrapper" data-symbol="{{ formula.symbol }}" data-name="{{ formula.name|escapejs }}">
                         <label class="form-label">
                             <code class="fs-5">{{ formula.symbol }}</code>
                             <small class="text-muted">— {{ formula.name }}</small>
                         </label>
                         <div class="input-group">
-                            <input type="number" step="any" 
+                            <input type="number" step="any"
                                    class="form-control input-variable"
                                    id="input-{{ formula.symbol }}"
                                    data-symbol="{{ formula.symbol }}"
+                                   data-default="{{ formula.default_value|default:'' }}"
                                    value="{% if session_values %}{{ session_values|get_item:formula.symbol }}{% elif formula.default_value %}{{ formula.default_value }}{% endif %}"
                                    placeholder="{{ formula.default_value|default:'Введите значение' }}">
                             {% if formula.unit %}
@@ -45,8 +138,14 @@
                 </form>
             </div>
             <div class="card-footer">
-                <button type="button" id="calculate-all-btn" class="btn btn-success w-100">
+                <button type="button" id="calculate-all-btn" class="btn btn-success w-100 mb-2">
                     <i class="bi bi-play-fill"></i> Вычислить всё
+                </button>
+                <button type="button" id="reset-all-btn" class="btn btn-outline-secondary w-100 mb-2">
+                    <i class="bi bi-arrow-counterclockwise"></i> Сбросить всё
+                </button>
+                <button type="button" id="export-btn" class="btn btn-outline-success w-100" disabled>
+                    <i class="bi bi-file-earmark-excel"></i> Экспорт результатов
                 </button>
             </div>
         </div>
@@ -59,25 +158,41 @@
                 <h5 class="mb-0"><i class="bi bi-list-check"></i> Результаты</h5>
                 <span class="badge bg-secondary" id="results-count">0 формул</span>
             </div>
-            <div class="card-body p-0">
+            <div class="card-body">
+                <!-- Заглушка -->
                 <div id="results-placeholder" class="text-center py-5">
                     <i class="bi bi-arrow-left-circle fs-1 text-muted"></i>
                     <p class="text-muted mt-2">Введите параметры и нажмите "Вычислить всё"</p>
                 </div>
 
+                <!-- Контейнер результатов -->
                 <div id="results-container" style="display: none;">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Символ</th>
-                                <th>Название</th>
-                                <th>Формула</th>
-                                <th>Результат</th>
-                            </tr>
-                        </thead>
-                        <tbody id="results-tbody">
-                        </tbody>
-                    </table>
+                    <!-- Панель инструментов -->
+                    <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+                        <input type="text" id="result-search" class="form-control form-control-sm" style="max-width: 260px;" placeholder="Поиск по символу или названию...">
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary" id="expand-all-btn" title="Развернуть всё">
+                                <i class="bi bi-arrows-expand"></i>
+                            </button>
+                            <button class="btn btn-outline-secondary" id="collapse-all-btn" title="Свернуть всё">
+                                <i class="bi bi-arrows-collapse"></i>
+                            </button>
+                        </div>
+                        <div class="form-check form-switch ms-auto">
+                            <input class="form-check-input" type="checkbox" id="errors-only-check">
+                            <label class="form-check-label small" for="errors-only-check">Только ошибки</label>
+                        </div>
+                    </div>
+
+                    <!-- Аккордеон по категориям -->
+                    <div class="accordion" id="results-accordion">
+                    </div>
+
+                    <!-- Ничего не найдено -->
+                    <div id="no-results-msg" class="no-results-msg" style="display: none;">
+                        <i class="bi bi-search fs-3"></i>
+                        <p class="mt-2">Ничего не найдено</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -99,28 +214,233 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // === DOM ===
     const calculateBtn = document.getElementById('calculate-all-btn');
+    const resetBtn = document.getElementById('reset-all-btn');
     const resultsContainer = document.getElementById('results-container');
     const resultsPlaceholder = document.getElementById('results-placeholder');
-    const resultsTbody = document.getElementById('results-tbody');
+    const resultsAccordion = document.getElementById('results-accordion');
     const resultsCount = document.getElementById('results-count');
     const errorsCard = document.getElementById('errors-card');
     const errorsList = document.getElementById('errors-list');
+    const searchInput = document.getElementById('result-search');
+    const expandAllBtn = document.getElementById('expand-all-btn');
+    const collapseAllBtn = document.getElementById('collapse-all-btn');
+    const errorsOnlyCheck = document.getElementById('errors-only-check');
+    const exportBtn = document.getElementById('export-btn');
+    const noResultsMsg = document.getElementById('no-results-msg');
+    const inputSearch = document.getElementById('input-search');
 
-    // Данные о формулах
+    // === Данные формул ===
     const formulaData = {
         {% for f in all_formulas %}
         '{{ f.symbol }}': {
             name: '{{ f.name|escapejs }}',
             expression: '{{ f.expression|escapejs }}',
             unit: '{{ f.unit|escapejs }}',
-            is_input: {{ f.is_input|yesno:"true,false" }}
+            is_input: {{ f.is_input|yesno:"true,false" }},
+            pk: {{ f.pk }},
+            category: '{{ f.category.name|default:"__none__"|escapejs }}'
         }{% if not forloop.last %},{% endif %}
         {% endfor %}
     };
 
+    // === Встроенные функции ===
+    const BUILTIN = new Set([
+        'sin','cos','tan','tg','ctg','cot','asin','acos','atan','atan2',
+        'sinh','cosh','tanh','sqrt','cbrt','root','log','ln','log10','log2',
+        'exp','abs','round','ceil','floor','min','max','sum','avg','pow',
+        'mod','if_else','rad','deg','pi','e','PI','E'
+    ]);
+
+    function extractVars(expr) {
+        if (!expr) return [];
+        const matches = expr.match(/\b([a-zA-Z_][a-zA-Z0-9_]*)\b/g) || [];
+        return [...new Set(matches.filter(m => !BUILTIN.has(m)))];
+    }
+
+    // === Граф зависимостей ===
+    const inputDepsMap = {};
+
+    function getInputDeps(symbol, visited = new Set()) {
+        if (inputDepsMap[symbol]) return inputDepsMap[symbol];
+        if (visited.has(symbol)) return new Set();
+        visited.add(symbol);
+
+        const info = formulaData[symbol];
+        if (!info) return new Set();
+
+        if (info.is_input) {
+            inputDepsMap[symbol] = new Set([symbol]);
+            return inputDepsMap[symbol];
+        }
+
+        const vars = extractVars(info.expression);
+        const deps = new Set();
+        for (const v of vars) {
+            for (const d of getInputDeps(v, visited)) deps.add(d);
+        }
+        inputDepsMap[symbol] = deps;
+        return deps;
+    }
+
+    for (const symbol of Object.keys(formulaData)) {
+        getInputDeps(symbol);
+    }
+
+    // Обратная карта: input_symbol -> Set<вычисляемая формула>
+    const reverseDeps = {};
+    for (const [symbol, inputs] of Object.entries(inputDepsMap)) {
+        if (formulaData[symbol]?.is_input) continue;
+        for (const input of inputs) {
+            if (!reverseDeps[input]) reverseDeps[input] = new Set();
+            reverseDeps[input].add(symbol);
+        }
+    }
+
+    // === Состояние ===
+    let lastComputedValues = {};
+    let currentResults = null;
+    let hasComputed = false;
+    const changedInputs = new Set();
+
+    // === localStorage ===
+    const STORAGE_KEY = 'calcAll_settings';
+
+    function loadSettings() {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            return raw ? JSON.parse(raw) : {};
+        } catch { return {}; }
+    }
+
+    function saveSettings(settings) {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); } catch {}
+    }
+
+    function getOpenCategories() {
+        return new Set(loadSettings().openCategories || []);
+    }
+
+    function setOpenCategories(cats) {
+        const s = loadSettings();
+        s.openCategories = [...cats];
+        saveSettings(s);
+    }
+
+    // Восстановление состояния
+    const savedSettings = loadSettings();
+    if (savedSettings.errorsOnly) errorsOnlyCheck.checked = true;
+    if (savedSettings.searchText) searchInput.value = savedSettings.searchText;
+
+    // === Поиск по входным параметрам ===
+    inputSearch.addEventListener('input', function() {
+        const q = this.value.toLowerCase().trim();
+        document.querySelectorAll('.input-group-wrapper').forEach(wrapper => {
+            const sym = wrapper.dataset.symbol.toLowerCase();
+            const name = wrapper.dataset.name.toLowerCase();
+            wrapper.style.display = (q === '' || sym.includes(q) || name.includes(q)) ? '' : 'none';
+        });
+    });
+
+    // === Отслеживание изменений входных параметров (до вычисления) ===
+    document.querySelectorAll('.input-variable').forEach(input => {
+        input.addEventListener('input', function() {
+            if (!hasComputed) return;
+
+            const symbol = this.dataset.symbol;
+            const currentVal = this.value.trim();
+            const lastVal = lastComputedValues[symbol];
+            const wrapper = this.closest('.input-group-wrapper');
+
+            if (currentVal !== String(lastVal ?? '')) {
+                changedInputs.add(symbol);
+                this.classList.add('input-changed');
+                if (wrapper) wrapper.classList.add('changed');
+            } else {
+                changedInputs.delete(symbol);
+                this.classList.remove('input-changed');
+                if (wrapper) wrapper.classList.remove('changed');
+            }
+
+            updateStaleHighlights();
+            updateCalculateBtn();
+        });
+    });
+
+    function getStaleSymbols() {
+        const stale = new Set();
+        for (const inputSymbol of changedInputs) {
+            for (const d of (reverseDeps[inputSymbol] || [])) stale.add(d);
+        }
+        return stale;
+    }
+
+    function updateStaleHighlights() {
+        const stale = getStaleSymbols();
+        document.querySelectorAll('.result-row').forEach(row => {
+            if (stale.has(row.dataset.symbol)) {
+                row.classList.add('stale-row');
+                row.title = 'Параметры изменены — требуется пересчёт';
+            } else {
+                row.classList.remove('stale-row');
+                row.title = '';
+            }
+        });
+        updateCategoryBadges(stale);
+    }
+
+    function updateCategoryBadges(stale) {
+        document.querySelectorAll('.category-item').forEach(item => {
+            const rows = item.querySelectorAll('.result-row');
+            let staleCount = 0;
+            rows.forEach(r => { if (stale.has(r.dataset.symbol)) staleCount++; });
+            const badge = item.querySelector('.stale-badge');
+            if (badge) {
+                if (staleCount > 0) {
+                    badge.textContent = `⚠ ${staleCount} устарели`;
+                    badge.style.display = '';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    function updateCalculateBtn() {
+        if (!hasComputed) {
+            calculateBtn.className = 'btn btn-success w-100 mb-2';
+            calculateBtn.innerHTML = '<i class="bi bi-play-fill"></i> Вычислить всё';
+        } else if (changedInputs.size > 0) {
+            calculateBtn.className = 'btn btn-stale w-100 mb-2';
+            calculateBtn.innerHTML = `<i class="bi bi-arrow-repeat"></i> Пересчитать (${changedInputs.size} изм.)`;
+        } else {
+            calculateBtn.className = 'btn btn-calculated w-100 mb-2';
+            calculateBtn.innerHTML = '<i class="bi bi-check-circle"></i> Вычислено';
+        }
+    }
+
+    // === Клик по входному параметру в результатах ===
+    resultsAccordion.addEventListener('click', function(e) {
+        if (e.target.classList.contains('dep-link')) {
+            e.preventDefault();
+            const symbol = e.target.dataset.symbol;
+            const inputEl = document.getElementById('input-' + symbol);
+            if (inputEl) {
+                inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                inputEl.focus();
+                const wrapper = inputEl.closest('.input-group-wrapper');
+                if (wrapper) {
+                    wrapper.style.backgroundColor = '#cfe2ff';
+                    wrapper.style.transition = 'background-color 0.5s ease';
+                    setTimeout(() => { wrapper.style.backgroundColor = ''; }, 1500);
+                }
+            }
+        }
+    });
+
+    // === Вычислить всё ===
     calculateBtn.addEventListener('click', async function() {
-        // Собираем значения
         const values = {};
         document.querySelectorAll('.input-variable').forEach(input => {
             const symbol = input.dataset.symbol;
@@ -129,7 +449,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        // Показываем загрузку
         calculateBtn.disabled = true;
         calculateBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Вычисление...';
 
@@ -146,7 +465,28 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
 
             if (data.success) {
-                displayResults(data.results);
+                // Запоминаем какие инпуты изменились ДО вычисления
+                const changedBefore = new Set(changedInputs);
+
+                lastComputedValues = { ...values };
+                changedInputs.clear();
+                hasComputed = true;
+                currentResults = data.results;
+
+                // Снять подсветку "до вычисления"
+                document.querySelectorAll('.input-variable').forEach(i => i.classList.remove('input-changed'));
+                document.querySelectorAll('.input-group-wrapper').forEach(w => w.classList.remove('changed'));
+
+                await displayResults(data.results, changedBefore);
+
+                // Подсветка "после вычисления" — инпуты
+                for (const sym of changedBefore) {
+                    const inputEl = document.getElementById('input-' + sym);
+                    if (inputEl) inputEl.classList.add('calc-changed-input');
+                }
+
+                exportBtn.disabled = false;
+                updateCalculateBtn();
             } else {
                 alert('Ошибка: ' + data.error);
             }
@@ -154,76 +494,361 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Ошибка соединения: ' + error);
         } finally {
             calculateBtn.disabled = false;
-            calculateBtn.innerHTML = '<i class="bi bi-play-fill"></i> Вычислить всё';
+            updateCalculateBtn();
         }
     });
 
-    function displayResults(results) {
+    // === Сбросить всё ===
+    resetBtn.addEventListener('click', function() {
+        document.querySelectorAll('.input-variable').forEach(input => {
+            input.value = input.dataset.default || '';
+            input.classList.remove('input-changed', 'calc-changed-input');
+        });
+        document.querySelectorAll('.input-group-wrapper').forEach(w => w.classList.remove('changed'));
+
+        lastComputedValues = {};
+        changedInputs.clear();
+        hasComputed = false;
+        currentResults = null;
+
+        resultsPlaceholder.style.display = 'block';
+        resultsContainer.style.display = 'none';
+        errorsCard.style.display = 'none';
+        resultsAccordion.innerHTML = '';
+        resultsCount.textContent = '0 формул';
+        exportBtn.disabled = true;
+        updateCalculateBtn();
+    });
+
+    // === Отображение результатов ===
+    async function displayResults(results, changedBefore = new Set()) {
         resultsPlaceholder.style.display = 'none';
         resultsContainer.style.display = 'block';
 
-        let html = '';
+        const categories = new Map();
+        const categoryOrder = [];
         let successCount = 0;
-        let errors = [];
+        let totalCalculated = 0;
+        const errors = [];
 
-        // Сортируем: сначала входные, потом вычисляемые
-        const sortedSymbols = Object.keys(results).sort((a, b) => {
-            const aInput = formulaData[a]?.is_input ? 0 : 1;
-            const bInput = formulaData[b]?.is_input ? 0 : 1;
-            return aInput - bInput;
-        });
+        for (const [symbol, result] of Object.entries(results)) {
+            const info = formulaData[symbol];
+            if (!info || info.is_input) continue;
 
-        for (const symbol of sortedSymbols) {
-            const result = results[symbol];
-            const info = formulaData[symbol] || {};
+            totalCalculated++;
+            const catName = info.category === '__none__' ? 'Без категории' : (info.category || 'Без категории');
+
+            if (!categories.has(catName)) {
+                categories.set(catName, []);
+                categoryOrder.push(catName);
+            }
+            categories.get(catName).push({ symbol, result, info });
 
             if (result.success) {
                 successCount++;
-                let value = result.value;
-                if (typeof value === 'number') {
-                    // Форматируем число
-                    value = value.toFixed(4).replace(/\.?0+$/, '');
-                }
-
-                html += `
-                    <tr>
-                        <td><code class="fs-5 text-primary">${symbol}</code></td>
-                        <td>${info.name || ''}</td>
-                        <td><code class="text-muted">${result.expression || ''}</code></td>
-                        <td>
-                            <strong class="text-success">${value}</strong>
-                            ${info.unit ? '<small class="text-muted ms-1">' + info.unit + '</small>' : ''}
-                        </td>
-                    </tr>
-                `;
             } else {
-                errors.push({ symbol, error: result.error });
-                html += `
-                    <tr class="table-danger">
-                        <td><code class="fs-5">${symbol}</code></td>
-                        <td>${info.name || ''}</td>
-                        <td><code class="text-muted">${result.expression || ''}</code></td>
-                        <td><span class="text-danger"><i class="bi bi-x-circle"></i> ${result.error || 'Ошибка'}</span></td>
-                    </tr>
-                `;
+                errors.push({ symbol, error: result.error, name: info.name });
             }
         }
-        
-        resultsTbody.innerHTML = html;
-        resultsCount.textContent = successCount + ' из ' + Object.keys(results).length + ' формул';
-        
-        // Показываем ошибки
+
+        resultsCount.textContent = `${successCount} из ${totalCalculated} формул`;
+
+        // Собираем зависимые результаты от изменённых инпутов
+        const affectedResults = new Set();
+        for (const sym of changedBefore) {
+            if (reverseDeps[sym]) {
+                for (const dep of reverseDeps[sym]) affectedResults.add(dep);
+            }
+        }
+
+        const openCats = getOpenCategories();
+        let html = '';
+
+        categoryOrder.forEach((catName, idx) => {
+            const items = categories.get(catName);
+            const catSuccess = items.filter(i => i.result.success).length;
+            const catTotal = items.length;
+            const collapseId = `cat-result-${idx}`;
+            const isOpen = openCats.has(catName);
+
+            html += `
+                <div class="accordion-item category-item" data-category="${catName}" data-visible="true">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button ${isOpen ? '' : 'collapsed'}" type="button"
+                                data-bs-toggle="collapse" data-bs-target="#${collapseId}"
+                                data-category="${catName}">
+                            <span class="me-2">${catName}</span>
+                            <span class="badge bg-secondary">${catSuccess}/${catTotal}</span>
+                            ${catSuccess < catTotal ? `<span class="badge bg-danger ms-1">${catTotal - catSuccess}</span>` : ''}
+                            <span class="badge bg-warning text-dark ms-1 stale-badge" style="display: none;"></span>
+                        </button>
+                    </h2>
+                    <div id="${collapseId}" class="accordion-collapse collapse ${isOpen ? 'show' : ''}">
+                        <div class="accordion-body p-0">
+                            <table class="table table-hover table-sm mb-0" style="table-layout: fixed; width: 100%;">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 10%;">Символ</th>
+                                        <th style="width: 25%; padding-right: 20px;">Название</th>
+                                        <th style="width: 45%; padding-left: 20px;">Формула</th>
+                                        <th style="width: 20%;">Результат</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${items.map(({ symbol, result, info }) => renderRow(symbol, result, info, affectedResults)).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        resultsAccordion.innerHTML = html;
+
+        // Сохранение состояния аккордеона
+        resultsAccordion.querySelectorAll('.accordion-button[data-category]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const cat = this.dataset.category;
+                const isOpening = this.classList.contains('collapsed');
+                const open = getOpenCategories();
+                if (isOpening) open.add(cat); else open.delete(cat);
+                setOpenCategories(open);
+            });
+        });
+
+        applyFilters();
+
         if (errors.length > 0) {
             errorsCard.style.display = 'block';
-            errorsList.innerHTML = errors.map(e => 
+            errorsList.innerHTML = errors.map(e =>
                 `<li class="list-group-item list-group-item-danger">
-                    <code>${e.symbol}</code>: ${e.error}
+                    <code>${e.symbol}</code> <small class="text-muted">(${e.name})</small>: ${e.error}
                 </li>`
             ).join('');
         } else {
             errorsCard.style.display = 'none';
         }
+
+        await renderKatex(results);
     }
+
+    function renderRow(symbol, result, info, affectedResults) {
+        const formulaUrl = info.pk ? `/calculator/formula/${info.pk}/` : '#';
+        const symbolCell = `<a href="${formulaUrl}" class="text-decoration-none"><code class="text-primary">${symbol}</code></a>`;
+        const safeName = (info.name || '').replace(/"/g, '&quot;');
+        const isAffected = affectedResults.has(symbol);
+        const extraClass = isAffected ? 'calc-changed-result' : '';
+
+        // Зависимости-входные параметры
+        const vars = extractVars(info.expression);
+        const inputVars = vars.filter(v => formulaData[v]?.is_input);
+        let depLinksHtml = '';
+        if (inputVars.length > 0) {
+            depLinksHtml = `<div class="mt-1"><small class="text-muted">ввод: ${inputVars.map(v => `<a class="dep-link" data-symbol="${v}">${v}</a>`).join(', ')}</small></div>`;
+        }
+
+        if (result.success) {
+            let value = result.value;
+            if (typeof value === 'number') {
+                value = value.toFixed(6).replace(/\.?0+$/, '');
+            }
+            const unitHtml = info.unit ? `<small class="text-muted ms-1">${info.unit}</small>` : '';
+
+            let formulaCell;
+            if (result.expression) {
+                formulaCell = `<span class="katex-placeholder" data-symbol="${symbol}" data-expr="${result.expression.replace(/"/g, '&quot;')}">...</span>${depLinksHtml}`;
+            } else {
+                formulaCell = `<code class="text-muted">—</code>`;
+            }
+
+            return `
+                <tr class="result-row ${extraClass}" data-symbol="${symbol}" data-success="true" data-name="${safeName.toLowerCase()}">
+                    <td>${symbolCell}</td>
+                    <td style="padding-right: 20px;">${info.name || ''}</td>
+                    <td style="padding-left: 20px; overflow-x: auto;">${formulaCell}</td>
+                    <td><strong class="text-success">${value}</strong>${unitHtml}</td>
+                </tr>
+            `;
+        } else {
+            return `
+                <tr class="result-row table-danger ${extraClass}" data-symbol="${symbol}" data-success="false" data-name="${safeName.toLowerCase()}">
+                    <td>${symbolCell}</td>
+                    <td style="padding-right: 20px;">${info.name || ''}</td>
+                    <td style="padding-left: 20px; overflow-x: auto;"><code class="text-muted">${result.expression || ''}</code>${depLinksHtml}</td>
+                    <td><span class="text-danger"><i class="bi bi-x-circle"></i> ${result.error || 'Ошибка'}</span></td>
+                </tr>
+            `;
+        }
+    }
+
+    // === KaTeX ===
+    async function renderKatex(results) {
+        const formulasToRender = [];
+
+        for (const [symbol, result] of Object.entries(results)) {
+            const info = formulaData[symbol];
+            if (info?.is_input) continue;
+            if (result.success && result.expression) {
+                formulasToRender.push({ symbol, expression: result.expression });
+            }
+        }
+
+        if (formulasToRender.length === 0 || typeof katex === 'undefined') return;
+
+        try {
+            const response = await fetch('{% url "formulas:latex_preview_batch_api" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ formulas: formulasToRender })
+            });
+
+            const data = await response.json();
+
+            if (data.items) {
+                data.items.forEach(item => {
+                    const placeholder = document.querySelector(`.katex-placeholder[data-symbol="${item.symbol}"]`);
+                    if (placeholder && item.latex) {
+                        try {
+                            let latex = item.latex.trim();
+                            latex = latex.replace(/^\$\$/g, '').replace(/\$\$$/g, '');
+                            latex = latex.replace(/^\\\(/g, '').replace(/\\\)$/g, '');
+
+                            katex.render(latex, placeholder, {
+                                displayMode: true,
+                                throwOnError: false,
+                                macros: { "\\f": "#1f(#2)" }
+                            });
+                        } catch (e) {
+                            placeholder.innerHTML = `<code class="text-muted">${item.expression || '—'}</code>`;
+                        }
+                    }
+                });
+            }
+        } catch (err) {
+            document.querySelectorAll('.katex-placeholder').forEach(el => {
+                el.innerHTML = `<code class="text-muted">${el.dataset.expr || '—'}</code>`;
+            });
+        }
+    }
+
+    // === Фильтрация ===
+    function applyFilters() {
+        const searchText = searchInput.value.toLowerCase().trim();
+        const errorsOnly = errorsOnlyCheck.checked;
+        let anyVisible = false;
+
+        document.querySelectorAll('.category-item').forEach(catItem => {
+            const rows = catItem.querySelectorAll('.result-row');
+            let catHasVisible = false;
+
+            rows.forEach(row => {
+                const symbol = row.dataset.symbol.toLowerCase();
+                const name = row.dataset.name;
+                const isSuccess = row.dataset.success === 'true';
+
+                let visible = true;
+
+                if (searchText && !symbol.includes(searchText) && !name.includes(searchText)) {
+                    visible = false;
+                }
+
+                if (errorsOnly && isSuccess) {
+                    visible = false;
+                }
+
+                row.style.display = visible ? '' : 'none';
+                if (visible) catHasVisible = true;
+            });
+
+            catItem.dataset.visible = catHasVisible ? 'true' : 'false';
+            if (catHasVisible) anyVisible = true;
+        });
+
+        noResultsMsg.style.display = anyVisible ? 'none' : 'block';
+    }
+
+    searchInput.addEventListener('input', function() {
+        applyFilters();
+        const s = loadSettings();
+        s.searchText = this.value;
+        saveSettings(s);
+    });
+
+    errorsOnlyCheck.addEventListener('change', function() {
+        applyFilters();
+        const s = loadSettings();
+        s.errorsOnly = this.checked;
+        saveSettings(s);
+    });
+
+    // === Свернуть / Развернуть всё ===
+    expandAllBtn.addEventListener('click', function() {
+        const openCats = new Set();
+        document.querySelectorAll('.category-item').forEach(item => {
+            if (item.dataset.visible === 'false') return;
+            const cat = item.dataset.category;
+            openCats.add(cat);
+            const collapse = item.querySelector('.accordion-collapse');
+            const button = item.querySelector('.accordion-button');
+            if (collapse) collapse.classList.add('show');
+            if (button) button.classList.remove('collapsed');
+        });
+        setOpenCategories(openCats);
+    });
+
+    collapseAllBtn.addEventListener('click', function() {
+        document.querySelectorAll('.accordion-collapse').forEach(c => c.classList.remove('show'));
+        document.querySelectorAll('.accordion-button').forEach(b => b.classList.add('collapsed'));
+        setOpenCategories(new Set());
+    });
+
+    // === Экспорт ===
+    exportBtn.addEventListener('click', async function() {
+        const values = {};
+        document.querySelectorAll('.input-variable').forEach(input => {
+            const symbol = input.dataset.symbol;
+            if (input.value.trim() !== '') {
+                values[symbol] = input.value;
+            }
+        });
+
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Экспорт...';
+
+        try {
+            const response = await fetch('{% url "formulas:export" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ values })
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'calculation_results.xlsx';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } else {
+                alert('Ошибка экспорта');
+            }
+        } catch (error) {
+            alert('Ошибка: ' + error);
+        } finally {
+            this.disabled = false;
+            this.innerHTML = '<i class="bi bi-file-earmark-excel"></i> Экспорт результатов';
+        }
+    });
 });
 </script>
 {% endblock %}

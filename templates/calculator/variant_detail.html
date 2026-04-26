@@ -13,16 +13,86 @@
             </ol>
         </nav>
         <h1>Вариант {{ variant.number }}</h1>
-        {% if variant.student_name %}
-        <p class="lead">{{ variant.student_name }}</p>
-        {% endif %}
     </div>
     <div class="col-auto">
+        <a href="{% url 'calculator:export_variant' variant.pk %}" class="btn btn-success me-2">
+            <i class="bi bi-file-earmark-excel"></i> Экспорт в Excel
+        </a>
+        
+        <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#recalculateModal">
+            <i class="bi bi-arrow-clockwise"></i> Пересчитать
+        </button>
+    </div>
+</div>
+
+<!-- ПРЕДУПРЕЖДЕНИЕ -->
+{% if formulas_outdated %}
+<div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2 fs-4"></i>
+    <div>
+        <strong>Формулы изменены!</strong> 
+        Вариант создан с другими формулами. 
+        {% if last_recalculated_at %}
+            Последний пересчёт: {{ last_recalculated_at|date:"d.m.Y H:i" }}
+        {% else %}
+            Рекомендуется пересчитать вариант.
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- МОДАЛЬНОЕ ОКНО -->
+<div class="modal fade" id="recalculateModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title">Подтверждение пересчёта</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p><strong>Вы уверены?</strong></p>
+        <p>Значения будут пересчитаны по <strong>актуальным</strong> формулам.</p>
+        
+        {% if variant.student_name %}
+        <div class="alert alert-danger">
+            <i class="bi bi-person-fill"></i> Вариант назначен: <strong>{{ variant.student_name }}</strong>
+        </div>
+        {% endif %}
+        
+        {% if last_recalculated_at %}
+        <p class="text-muted">Последний пересчёт: {{ last_recalculated_at|date:"d.m.Y H:i" }}</p>
+        {% endif %}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
         <form method="POST" action="{% url 'calculator:variant_recalculate' variant.pk %}" class="d-inline">
             {% csrf_token %}
-            <button type="submit" class="btn btn-success">
+            <button type="submit" class="btn btn-warning">
                 <i class="bi bi-arrow-clockwise"></i> Пересчитать
             </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- РЕДАКТИРОВАНИЕ СТУДЕНТА -->
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="POST" action="{% url 'calculator:variant_update_student' variant.pk %}">
+            {% csrf_token %}
+            <div class="row align-items-end">
+                <div class="col-md-8">
+                    <label class="form-label">ФИО студента</label>
+                    <input type="text" name="student_name" class="form-control" 
+                           value="{{ variant.student_name }}" placeholder="Иванов Иван Иванович">
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-save"></i> Сохранить
+                    </button>
+                </div>
+            </div>
         </form>
     </div>
 </div>

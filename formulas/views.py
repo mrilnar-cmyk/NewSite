@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse
 from django.views import View
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.contrib import messages
 from django.db.models import Q
@@ -10,54 +11,129 @@ import json
 from .models import Category, Formula, FormulaVariable, CalculationSession, SessionValue
 from .services import FormulaParser, FormulaCalculator, calculator
 from .forms import CategoryForm, FormulaForm
+from .models import FormulaChart
+
+from django.http import HttpResponse
+from .export import ExcelExporter
+from datetime import datetime
+from .export import export_full_data
+
+from .models import ChatMessage
+from .ai_service import chat_with_ai, clear_chat_history
+
+from django.views.decorators.http import require_POST
 
 
-class CategoryListView(ListView):
+
+#  МИКСИН ДЛЯ ВЛАДЕЛЬЦА
+
+class UserOwnerMixin:
+    """Миксин для фильтрации по пользователю"""
+
+    def get_queryset(self):
+        """Возвращает только объекты текущего пользователя"""
+        qs = super().get_queryset()
+        if hasattr(qs.model, 'user'):
+            return qs.filter(user=self.request.user)
+        return qs
+
+    def form_valid(self, form):
+        """Привязывает объект к текущему пользователю при создании"""
+        # Проверяем, что это ModelForm с instance (не форма подтверждения удаления)
+        if hasattr(form, 'instance') and hasattr(form.instance, 'user'):
+            if not form.instance.user_id:
+                form.instance.user = self.request.user
+        return super().form_valid(form)
+
+
+# КАТЕГОРИИ
+
+class CategoryListView(LoginRequiredMixin, UserOwnerMixin, ListView):
     """Список категорий"""
     model = Category
     template_name = 'formulas/category_list.html'
     context_object_name = 'categories'
 
     def get_queryset(self):
-        return Category.objects.filter(parent=None).prefetch_related('children', 'formulas')
+        # Только корневые категории текущего пользователя
+        return Category.objects.filter(
+            user=self.request.user,
+            parent=None
+        ).prefetch_related(
+            'children',
+            'children__children',
+            'formulas',
+            'children__formulas'
+        ).order_by('order', 'name')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user_categories = Category.objects.filter(user=self.request.user)
+        context['total_categories'] = user_categories.count()
+        context['total_root'] = user_categories.filter(parent=None).count()
+        context['total_sub'] = user_categories.exclude(parent=None).count()
+        return context
 
 
-class CategoryCreateView(CreateView):
+class CategoryCreateView(LoginRequiredMixin, UserOwnerMixin, CreateView):
     """Создание категории"""
     model = Category
     form_class = CategoryForm
     template_name = 'formulas/category_form.html'
     success_url = reverse_lazy('formulas:category_list')
 
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        # Показываем только категории текущего пользователя
+        form.fields['parent'].queryset = Category.objects.filter(user=self.request.user)
+        return form
+
     def form_valid(self, form):
+        form.instance.user = self.request.user
         messages.success(self.request, 'Категория успешно создана')
         return super().form_valid(form)
 
 
-class CategoryUpdateView(UpdateView):
+class CategoryUpdateView(LoginRequiredMixin, UserOwnerMixin, UpdateView):
     """Редактирование категории"""
     model = Category
     form_class = CategoryForm
     template_name = 'formulas/category_form.html'
     success_url = reverse_lazy('formulas:category_list')
 
+    def get_queryset(self):
+        return Category.objects.filter(user=self.request.user)
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        # Показываем только категории текущего пользователя (кроме текущей)
+        form.fields['parent'].queryset = Category.objects.filter(
+            user=self.request.user
+        ).exclude(pk=self.object.pk)
+        return form
+
     def form_valid(self, form):
         messages.success(self.request, 'Категория успешно обновлена')
         return super().form_valid(form)
 
 
-class CategoryDeleteView(DeleteView):
+class CategoryDeleteView(LoginRequiredMixin, UserOwnerMixin, DeleteView):
     """Удаление категории"""
     model = Category
     template_name = 'formulas/category_confirm_delete.html'
     success_url = reverse_lazy('formulas:category_list')
+
+    def get_queryset(self):
+        return Category.objects.filter(user=self.request.user)
 
     def form_valid(self, form):
         messages.success(self.request, 'Категория удалена')
         return super().form_valid(form)
 
 
-class FormulaListView(ListView):
+# ФОРМУЛЫ
+
+class FormulaListView(LoginRequiredMixin, ListView):
     """Список формул с поиском и фильтрацией"""
     model = Formula
     template_name = 'formulas/formula_list.html'
@@ -65,7 +141,9 @@ class FormulaListView(ListView):
     paginate_by = 25
 
     def get_queryset(self):
-        queryset = Formula.objects.select_related('category').prefetch_related('variables')
+        queryset = Formula.objects.filter(
+            user=self.request.user
+        ).select_related('category').prefetch_related('variables')
 
         # Поиск
         search = self.request.GET.get('search', '').strip()
@@ -89,22 +167,37 @@ class FormulaListView(ListView):
         elif is_input == '0':
             queryset = queryset.filter(is_input=False)
 
-        return queryset.order_by('category', 'order', 'symbol')
+        # Сортировка
+        sort = self.request.GET.get('sort', 'symbol')
+        if sort == 'created':
+            queryset = queryset.order_by('-created_at')
+        elif sort == 'updated':
+            queryset = queryset.order_by('-updated_at')
+        elif sort == 'name':
+            queryset = queryset.order_by('name')
+        else:  # symbol (по умолчанию)
+            queryset = queryset.order_by('category', 'order', 'symbol')
+
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['categories'] = Category.objects.all()
+        context['categories'] = Category.objects.filter(user=self.request.user)
         context['search'] = self.request.GET.get('search', '')
         context['selected_category'] = self.request.GET.get('category', '')
-        context['total_count'] = Formula.objects.count()
+        context['selected_sort'] = self.request.GET.get('sort', 'symbol')
+        context['total_count'] = Formula.objects.filter(user=self.request.user).count()
         return context
 
 
-class FormulaDetailView(DetailView):
+class FormulaDetailView(LoginRequiredMixin, UserOwnerMixin, DetailView):
     """Детальный просмотр формулы"""
     model = Formula
     template_name = 'formulas/formula_detail.html'
     context_object_name = 'formula'
+
+    def get_queryset(self):
+        return Formula.objects.filter(user=self.request.user)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -113,35 +206,46 @@ class FormulaDetailView(DetailView):
         variables = FormulaParser.extract_variables(self.object.expression)
         context['extracted_variables'] = variables
 
-        # Формулы, которые используют эту формулу
+        # Формулы текущего пользователя, которые используют эту формулу
         context['used_in'] = Formula.objects.filter(
+            user=self.request.user,
             expression__contains=self.object.symbol
         ).exclude(pk=self.object.pk)
 
         # Формулы, от которых зависит эта формула
-        all_formulas = Formula.objects.all()
+        all_formulas = Formula.objects.filter(user=self.request.user)
         formula_symbols = {f.symbol for f in all_formulas}
         dependencies = [
             var for var in variables
             if var in formula_symbols
         ]
-        context['dependencies'] = Formula.objects.filter(symbol__in=dependencies)
+        context['dependencies'] = Formula.objects.filter(
+            user=self.request.user,
+            symbol__in=dependencies
+        )
 
         return context
 
 
-class FormulaCreateView(CreateView):
+class FormulaCreateView(LoginRequiredMixin, UserOwnerMixin, CreateView):
     """Создание формулы"""
     model = Formula
     form_class = FormulaForm
     template_name = 'formulas/formula_form.html'
     success_url = reverse_lazy('formulas:formula_list')
 
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        # Показываем только категории текущего пользователя
+        form.fields['category'].queryset = Category.objects.filter(user=self.request.user)
+        return form
+
     def form_valid(self, form):
+        form.instance.user = self.request.user
         messages.success(self.request, f'Формула "{form.instance.symbol}" успешно создана')
         response = super().form_valid(form)
 
-        # Автоматически создаём переменные (только для вычисляемых формул)
+        # Автоматически создаём переменные
         if not self.object.is_input and self.object.expression:
             self._create_variables(self.object)
 
@@ -153,11 +257,11 @@ class FormulaCreateView(CreateView):
 
     def _create_variables(self, formula):
         """Создаёт переменные на основе выражения"""
-        from .services import FormulaParser
-
         try:
             variables = FormulaParser.extract_variables(formula.expression)
-            all_formulas = {f.symbol: f for f in Formula.objects.exclude(pk=formula.pk)}
+            all_formulas = {f.symbol: f for f in Formula.objects.filter(
+                user=self.request.user
+            ).exclude(pk=formula.pk)}
 
             for var_symbol in variables:
                 var_type = 'formula' if var_symbol in all_formulas else 'input'
@@ -173,11 +277,19 @@ class FormulaCreateView(CreateView):
             print(f"Ошибка создания переменных: {e}")
 
 
-class FormulaUpdateView(UpdateView):
+class FormulaUpdateView(LoginRequiredMixin, UserOwnerMixin, UpdateView):
     """Редактирование формулы"""
     model = Formula
     form_class = FormulaForm
     template_name = 'formulas/formula_form.html'
+
+    def get_queryset(self):
+        return Formula.objects.filter(user=self.request.user)
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['category'].queryset = Category.objects.filter(user=self.request.user)
+        return form
 
     def get_success_url(self):
         return reverse_lazy('formulas:formula_detail', kwargs={'pk': self.object.pk})
@@ -200,11 +312,11 @@ class FormulaUpdateView(UpdateView):
 
     def _create_variables(self, formula):
         """Создаёт переменные на основе выражения"""
-        from .services import FormulaParser
-
         try:
             variables = FormulaParser.extract_variables(formula.expression)
-            all_formulas = {f.symbol: f for f in Formula.objects.exclude(pk=formula.pk)}
+            all_formulas = {f.symbol: f for f in Formula.objects.filter(
+                user=self.request.user
+            ).exclude(pk=formula.pk)}
 
             for var_symbol in variables:
                 var_type = 'formula' if var_symbol in all_formulas else 'input'
@@ -220,22 +332,24 @@ class FormulaUpdateView(UpdateView):
             print(f"Ошибка создания переменных: {e}")
 
 
-class FormulaDeleteView(DeleteView):
+class FormulaDeleteView(LoginRequiredMixin, DeleteView):
     """Удаление формулы"""
     model = Formula
     template_name = 'formulas/formula_confirm_delete.html'
     success_url = reverse_lazy('formulas:formula_list')
 
+    def get_queryset(self):
+        return Formula.objects.filter(user=self.request.user)
+
     def form_valid(self, form):
         symbol = self.object.symbol
-        response = super().form_valid(form)
         messages.success(self.request, f'Формула "{symbol}" удалена')
-        return response
+        return super().form_valid(form)
 
 
-# === API для AJAX ===
+#  API для AJAX
 
-class ParseFormulaView(View):
+class ParseFormulaView(LoginRequiredMixin, View):
     """API: Парсинг формулы и извлечение переменных"""
 
     def post(self, request):
@@ -254,8 +368,11 @@ class ParseFormulaView(View):
             # Извлекаем переменные
             variables = list(FormulaParser.extract_variables(expression))
 
-            # Проверяем, какие из переменных - это другие формулы
-            existing_formulas = Formula.objects.filter(symbol__in=variables)
+            # Проверяем, какие из переменных - это формулы текущего пользователя
+            existing_formulas = Formula.objects.filter(
+                user=request.user,
+                symbol__in=variables
+            )
             formula_symbols = {f.symbol for f in existing_formulas}
 
             variable_info = []
@@ -283,7 +400,7 @@ class ParseFormulaView(View):
             })
 
 
-class CalculateFormulaView(View):
+class CalculateFormulaView(LoginRequiredMixin, View):
     """API: Вычисление формулы"""
 
     def post(self, request):
@@ -304,13 +421,13 @@ class CalculateFormulaView(View):
                         'error': f'Некорректное значение для {key}: {val}'
                     })
 
-            # Получаем формулу
-            formula = get_object_or_404(Formula, pk=formula_id)
+            # Получаем формулу текущего пользователя
+            formula = get_object_or_404(Formula, pk=formula_id, user=request.user)
 
-            # Получаем все формулы для разрешения зависимостей
-            all_formulas = list(Formula.objects.all())
+            # Получаем все формулы пользователя для разрешения зависимостей
+            all_formulas = list(Formula.objects.filter(user=request.user))
 
-            # Вычисляем с зависимостями (используем правильное имя метода)
+            # Вычисляем с зависимостями
             results = calculator.calculate_formula_with_deps(
                 formula,
                 float_values,
@@ -356,7 +473,7 @@ class CalculateFormulaView(View):
             })
 
 
-class QuickCalculateView(View):
+class QuickCalculateView(LoginRequiredMixin, View):
     """API: Быстрое вычисление выражения без сохранения"""
 
     def post(self, request):
@@ -390,3 +507,528 @@ class QuickCalculateView(View):
                 'success': False,
                 'error': str(e)
             })
+
+
+#  ГРАФИКИ
+
+class ChartListView(LoginRequiredMixin, UserOwnerMixin, ListView):
+    """Список графиков"""
+    model = FormulaChart
+    template_name = 'formulas/chart_list.html'
+    context_object_name = 'charts'
+
+    def get_queryset(self):
+        return FormulaChart.objects.filter(user=self.request.user)
+
+
+class ChartCreateView(LoginRequiredMixin, UserOwnerMixin, CreateView):
+    """Создание графика"""
+    model = FormulaChart
+    template_name = 'formulas/chart_form.html'
+    fields = ['name', 'formula', 'x_variable', 'x_min', 'x_max', 'x_steps', 'chart_type']
+    success_url = reverse_lazy('formulas:chart_list')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['name'].widget.attrs.update({'class': 'form-control'})
+        form.fields['formula'].widget.attrs.update({'class': 'form-select'})
+        # Только формулы текущего пользователя
+        form.fields['formula'].queryset = Formula.objects.filter(
+            user=self.request.user,
+            is_input=False
+        )
+        form.fields['x_variable'].widget.attrs.update({'class': 'form-control'})
+        form.fields['x_min'].widget.attrs.update({'class': 'form-control', 'step': 'any'})
+        form.fields['x_max'].widget.attrs.update({'class': 'form-control', 'step': 'any'})
+        form.fields['x_steps'].widget.attrs.update({'class': 'form-control', 'min': 10, 'max': 500})
+        form.fields['chart_type'].widget.attrs.update({'class': 'form-select'})
+        return form
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        formulas = Formula.objects.filter(user=self.request.user, is_input=False)
+        formulas_with_vars = []
+        for f in formulas:
+            variables = list(FormulaParser.extract_variables(f.expression)) if f.expression else []
+            f.variables_list = variables
+            formulas_with_vars.append(f)
+        context['formulas'] = formulas_with_vars
+        return context
+
+    def form_valid(self, form):
+        form.instance.user = self.request.user
+        messages.success(self.request, 'График создан')
+        return super().form_valid(form)
+
+
+class ChartDetailView(LoginRequiredMixin, UserOwnerMixin, DetailView):
+    """Просмотр графика с интерактивными параметрами"""
+    model = FormulaChart
+    template_name = 'formulas/chart_detail.html'
+    context_object_name = 'chart'
+
+    def get_queryset(self):
+        return FormulaChart.objects.filter(user=self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        chart = self.object
+
+        if not chart.formula.expression:
+            context['dependent_params'] = []
+            context['error'] = "Формула не имеет выражения"
+            return context
+
+        all_vars = FormulaParser.extract_variables(chart.formula.expression)
+        param_vars = [v for v in all_vars if v != chart.x_variable]
+
+        all_formulas = {f.symbol: f for f in Formula.objects.filter(user=self.request.user)}
+
+        dependent_params = []
+        for symbol in sorted(param_vars):
+            formula = all_formulas.get(symbol)
+
+            if formula and formula.is_input:
+                db_value = formula.default_value
+
+                if db_value is not None:
+                    default_val = float(db_value)
+
+                    if default_val > 0:
+                        min_val = default_val * 0.1
+                        max_val = default_val * 3.0
+                    elif default_val < 0:
+                        min_val = default_val * 3.0
+                        max_val = abs(default_val) * 0.1
+                    else:
+                        min_val = -10.0
+                        max_val = 10.0
+
+                    step = (max_val - min_val) / 100.0
+                else:
+                    symbol_lower = symbol.lower()
+
+                    if any(x in symbol_lower for x in ['alpha', 'beta', 'gamma', 'theta', 'phi', 'psi', 'angle']):
+                        default_val = 10.0
+                        min_val = 0.0
+                        max_val = 90.0
+                        step = 0.5
+                    elif symbol_lower.startswith('r') or symbol_lower.startswith('l') or symbol_lower.startswith('h'):
+                        default_val = 100.0
+                        min_val = 10.0
+                        max_val = 500.0
+                        step = 5.0
+                    else:
+                        default_val = 10.0
+                        min_val = 0.0
+                        max_val = 100.0
+                        step = 1.0
+
+                default_val = round(default_val, 4)
+                min_val = round(min_val, 4)
+                max_val = round(max_val, 4)
+                step = round(step, 6)
+
+                if step <= 0:
+                    step = 0.01
+
+                dependent_params.append({
+                    'symbol': symbol,
+                    'name': formula.name,
+                    'default_value': default_val,
+                    'min_value': min_val,
+                    'max_value': max_val,
+                    'step': step,
+                    'unit': formula.unit or '',
+                    'db_value': db_value,
+                })
+
+            elif formula and not formula.is_input:
+                pass
+
+            else:
+                dependent_params.append({
+                    'symbol': symbol,
+                    'name': f'Параметр {symbol}',
+                    'default_value': 10.0,
+                    'min_value': 0.0,
+                    'max_value': 100.0,
+                    'step': 1.0,
+                    'unit': '',
+                    'db_value': None,
+                })
+
+        context['dependent_params'] = dependent_params
+        return context
+
+
+class ChartDataView(LoginRequiredMixin, View):
+    """API: Данные для графика"""
+
+    def post(self, request, pk):
+        try:
+            chart = get_object_or_404(FormulaChart, pk=pk, user=request.user)
+            data = json.loads(request.body)
+            fixed_values = data.get('values', {})
+
+            x_min = data.get('x_min')
+            x_max = data.get('x_max')
+
+            if x_min is None:
+                x_min = chart.x_min
+            else:
+                x_min = float(x_min)
+
+            if x_max is None:
+                x_max = chart.x_max
+            else:
+                x_max = float(x_max)
+
+            if x_min >= x_max:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Некорректный диапазон X: {x_min} >= {x_max}'
+                })
+
+            float_values = {}
+            for key, val in fixed_values.items():
+                try:
+                    if val is not None and str(val).strip() != '':
+                        float_values[key] = float(val)
+                except (ValueError, TypeError):
+                    pass
+
+            x_values = []
+            y_values = []
+
+            steps = chart.x_steps if chart.x_steps >= 2 else 50
+            step_size = (x_max - x_min) / (steps - 1)
+
+            # Только формулы текущего пользователя
+            all_formulas = list(Formula.objects.filter(user=request.user))
+
+            for i in range(steps):
+                x = x_min + i * step_size
+                x_values.append(round(x, 6))
+
+                calc_values = dict(float_values)
+                calc_values[chart.x_variable] = x
+
+                try:
+                    results = calculator.calculate_formula_with_deps(
+                        chart.formula,
+                        calc_values,
+                        all_formulas
+                    )
+
+                    result = results.get(chart.formula.symbol)
+                    if result and result.success and result.value is not None:
+                        y_values.append(round(result.value, 6))
+                    else:
+                        y_values.append(None)
+                except Exception:
+                    y_values.append(None)
+
+            return JsonResponse({
+                'success': True,
+                'x_values': x_values,
+                'y_values': y_values,
+                'x_label': chart.x_variable,
+                'y_label': f"{chart.formula.symbol}" + (f" ({chart.formula.unit})" if chart.formula.unit else ""),
+                'title': chart.name,
+            })
+
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'success': False,
+                'error': 'Ошибка формата данных'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+
+
+class ChartDeleteView(LoginRequiredMixin, UserOwnerMixin, DeleteView):
+    """Удаление графика"""
+    model = FormulaChart
+    template_name = 'formulas/chart_confirm_delete.html'
+    success_url = reverse_lazy('formulas:chart_list')
+
+    def get_queryset(self):
+        return FormulaChart.objects.filter(user=self.request.user)
+
+
+class ChartUpdateView(LoginRequiredMixin, UserOwnerMixin, UpdateView):
+    """Редактирование графика"""
+    model = FormulaChart
+    template_name = 'formulas/chart_form.html'
+    fields = ['name', 'formula', 'x_variable', 'x_min', 'x_max', 'x_steps', 'chart_type']
+
+    def get_queryset(self):
+        return FormulaChart.objects.filter(user=self.request.user)
+
+    def get_success_url(self):
+        return reverse_lazy('formulas:chart_detail', kwargs={'pk': self.object.pk})
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['name'].widget.attrs.update({'class': 'form-control'})
+        form.fields['formula'].widget.attrs.update({'class': 'form-select'})
+        form.fields['formula'].queryset = Formula.objects.filter(
+            user=self.request.user,
+            is_input=False
+        )
+        form.fields['x_variable'].widget.attrs.update({'class': 'form-control'})
+        form.fields['x_min'].widget.attrs.update({'class': 'form-control', 'step': 'any'})
+        form.fields['x_max'].widget.attrs.update({'class': 'form-control', 'step': 'any'})
+        form.fields['x_steps'].widget.attrs.update({'class': 'form-control', 'min': 10, 'max': 500})
+        form.fields['chart_type'].widget.attrs.update({'class': 'form-select'})
+        return form
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        formulas = Formula.objects.filter(user=self.request.user, is_input=False)
+        formulas_with_vars = []
+        for f in formulas:
+            variables = list(FormulaParser.extract_variables(f.expression)) if f.expression else []
+            f.variables_list = variables
+            formulas_with_vars.append(f)
+        context['formulas'] = formulas_with_vars
+        return context
+
+    def form_valid(self, form):
+        messages.success(self.request, 'График обновлён')
+        return super().form_valid(form)
+
+
+# ЭКСПОРТ
+
+class ExportFormulasView(LoginRequiredMixin, View):
+    """Экспорт всех формул в Excel"""
+
+    def get(self, request):
+        formulas = Formula.objects.filter(
+            user=request.user
+        ).select_related('category').order_by('category', 'order', 'symbol')
+
+        exporter = ExcelExporter()
+        exporter.export_formulas(formulas)
+
+        response = HttpResponse(
+            exporter.get_file(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response[
+            'Content-Disposition'] = f'attachment; filename="formulas_{datetime.now().strftime("%Y%m%d_%H%M")}.xlsx"'
+
+        return response
+
+
+class UnifiedExportView(LoginRequiredMixin, View):
+    """Единая кнопка экспорта всех данных"""
+
+    def get(self, request):
+        """Экспорт всех формул"""
+        formulas = Formula.objects.filter(
+            user=request.user
+        ).select_related('category').order_by('-is_input', 'category', 'symbol')
+
+        file_data = export_full_data(formulas=formulas)
+
+        response = HttpResponse(
+            file_data,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        filename = f"formulas_export_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        return response
+
+    def post(self, request):
+        """Экспорт с результатами расчёта"""
+        try:
+            data = json.loads(request.body)
+            input_values = {}
+
+            for key, val in data.get('values', {}).items():
+                try:
+                    if val != '' and val is not None:
+                        input_values[key] = float(val)
+                except (ValueError, TypeError):
+                    pass
+
+            # Формулы текущего пользователя
+            formulas = list(Formula.objects.filter(
+                user=request.user
+            ).select_related('category').order_by('-is_input', 'symbol'))
+            formula_map = {f.symbol: f for f in formulas}
+
+            # Вычисляем
+            results = calculator.calculate_all(formulas, input_values)
+
+            # Добавляем информацию
+            for symbol, result in results.items():
+                if symbol in formula_map:
+                    result.name = formula_map[symbol].name
+                    result.unit = formula_map[symbol].unit
+
+            # Экспортируем
+            file_data = export_full_data(
+                formulas=formulas,
+                calculation_results=results,
+                input_values=input_values,
+                formula_map=formula_map
+            )
+
+            response = HttpResponse(
+                file_data,
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            filename = f"calculation_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+            return response
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+
+# ============================================================
+# ЧАТ-БОТ
+# ============================================================
+
+class ChatView(LoginRequiredMixin, View):
+    """Страница чат-бота"""
+    
+    def get(self, request):
+        messages_list = ChatMessage.objects.filter(
+            user=request.user
+        ).order_by('created_at')[:100]
+        
+        formula_count = Formula.objects.filter(user=request.user).count()
+        input_count = Formula.objects.filter(user=request.user, is_input=True).count()
+        calc_count = Formula.objects.filter(user=request.user, is_input=False).count()
+        category_count = Category.objects.filter(user=request.user).count()
+        
+        context = {
+            'chat_messages': messages_list,
+            'formula_count': formula_count,
+            'input_count': input_count,
+            'calc_count': calc_count,
+            'category_count': category_count,
+        }
+        return render(request, 'formulas/chat.html', context)
+
+class ChatSendView(LoginRequiredMixin, View):
+    """API: Отправка сообщения в чат"""
+    
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            user_message = data.get('message', '').strip()
+            
+            if not user_message:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Пустое сообщение'
+                })
+            
+            if len(user_message) > 5000:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Сообщение слишком длинное (максимум 5000 символов)'
+                })
+            
+            # Отправляем в AI
+            result = chat_with_ai(request.user, user_message)
+            
+            return JsonResponse(result)
+            
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'success': False,
+                'error': 'Некорректный формат данных'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': f'Ошибка: {str(e)}'
+            })
+
+
+class ChatClearView(LoginRequiredMixin, View):
+    """API: Очистка истории чата"""
+    
+    def post(self, request):
+        try:
+            count = clear_chat_history(request.user)
+            return JsonResponse({
+                'success': True,
+                'message': f'Удалено {count} сообщений'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+
+
+# API: ПРЕДПРОСМОТР LATEX
+
+@require_POST
+def latex_preview_api(request):
+    """API для предпросмотра формулы в LaTeX (для редактора)"""
+    try:
+        data = json.loads(request.body)
+        expression = data.get('expression', '').strip()
+        symbol = data.get('symbol', '?').strip()
+
+        if not expression:
+            return JsonResponse({'latex': ''})
+
+        temp_formula = Formula(expression=expression, symbol=symbol)
+        latex_symbol = temp_formula.get_latex_symbol()
+        latex_expr = temp_formula.get_latex_expression()
+
+        full_latex = f"$${latex_symbol} = {latex_expr}$$"
+
+        return JsonResponse({'latex': full_latex})
+    except Exception as e:
+        return JsonResponse({'latex': '', 'error': str(e)})
+
+@require_POST
+def latex_preview_batch_api(request):
+    """API для пакетного рендеринга LaTeX (для страницы calculate_all)"""
+    try:
+        data = json.loads(request.body)
+        formulas = data.get('formulas', [])
+
+        items = []
+        for f in formulas:
+            expression = f.get('expression', '').strip()
+            symbol = f.get('symbol', '').strip()
+
+            if not expression:
+                # Входной параметр — просто символ
+                temp = Formula(expression='', symbol=symbol)
+                latex_symbol = temp.get_latex_symbol()
+                items.append({
+                    'symbol': symbol,
+                    'latex': f'$${latex_symbol}$$'
+                })
+                continue
+
+            temp = Formula(expression=expression, symbol=symbol)
+            latex_symbol = temp.get_latex_symbol()
+            latex_expr = temp.get_latex_expression()
+            items.append({
+                'symbol': symbol,
+                'latex': f"$${latex_symbol} = {latex_expr}$$"
+            })
+
+        return JsonResponse({'items': items})
+    except Exception as e:
+        return JsonResponse({'items': [], 'error': str(e)})

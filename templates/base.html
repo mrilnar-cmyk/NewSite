@@ -4,23 +4,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Калькулятор формул{% endblock %}</title>
+    <title>{% block title %}Formula{% endblock %}</title>
 
-    <!-- Bootstrap 5 CSS -->
+    <link rel="icon" href="data:,">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-    <!-- Custom CSS -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="{% static 'css/style.css' %}" rel="stylesheet">
-
+    <!-- KaTeX -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        onload="renderMathInElement(document.body, {
+            delimiters: [
+                {left: '$$', right: '$$', display: true},
+                {left: '\\(', right: '\\)', display: false}
+            ],
+            throwOnError: false
+        });"></script>
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="d-flex flex-column min-vh-100">
     <!-- Навигация -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
+    <nav class="navbar navbar-expand-lg navbar-main sticky-top">
         <div class="container-fluid">
-            <a class="navbar-brand" href="{% url 'core:home' %}">
-                <i class="bi bi-calculator"></i> FormulaCalc
+            <a class="navbar-brand-custom" href="{% url 'core:dashboard' %}">
+                <div class="navbar-brand-icon">
+                    <i class="bi bi-calculator"></i>
+                </div>
+                Formula
             </a>
 
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -30,64 +42,67 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'core:home' %}">
-                            <i class="bi bi-house"></i> Главная
+                        <a class="nav-link nav-link-custom" href="{% url 'core:dashboard' %}">
+                            <i class="bi bi-house me-1"></i>Главная
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'formulas:formula_list' %}">
-                            <i class="bi bi-list-ul"></i> Формулы
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'formulas:category_list' %}">
-                            <i class="bi bi-folder"></i> Категории
-                        </a>
-                    </li>
+
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                            <i class="bi bi-cpu"></i> Калькулятор
+                        <a class="nav-link nav-link-custom dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-calculator me-1"></i>Формулы
                         </a>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{% url 'calculator:workspace' %}">Обзор</a></li>
-                            <li><a class="dropdown-item" href="{% url 'calculator:calculate_all' %}">Вычислить всё</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{% url 'calculator:project_list' %}">Проекты и варианты</a></li>
+                            <li><a class="dropdown-item" href="{% url 'formulas:formula_list' %}">Все формулы</a></li>
+                            <li><a class="dropdown-item" href="{% url 'formulas:formula_create' %}">Создать формулу</a></li>
                         </ul>
                     </li>
+
+                    <li class="nav-item dropdown">
+                        <a class="nav-link nav-link-custom dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-cpu me-1"></i>Калькулятор
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'calculator:calculate_all' %}">Вычислить всё</a></li>
+                            <li><a class="dropdown-item" href="{% url 'calculator:workspace' %}">По формулам</a></li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-item dropdown">
+                        <a class="nav-link nav-link-custom dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                            <i class="bi bi-graph-up me-1"></i>Графики
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'formulas:chart_list' %}">Все графики</a></li>
+                            <li><a class="dropdown-item" href="{% url 'formulas:chart_create' %}">Создать график</a></li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link nav-link-custom" href="{% url 'formulas:chat' %}">
+                            <i class="bi bi-robot me-1"></i>AI Чат
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link nav-link-custom" href="{% url 'calculator:project_list' %}">
+                            <i class="bi bi-folder me-1"></i>Проекты
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link nav-link-custom" href="{% url 'formulas:category_list' %}">
+                            <i class="bi bi-tags me-1"></i>Категории
+                        </a>
+                    </li>
+
                 </ul>
 
+                <!-- Кнопка выхода -->
+                <a href="{% url 'core:logout' %}" class="btn btn-outline-danger btn-sm d-flex align-items-center">
+                    <i class="bi bi-box-arrow-right me-1"></i>
+                    <span class="d-none d-lg-inline">Выйти</span>
+                </a>
 
-                <!-- Быстрый поиск -->
-                <form class="d-flex me-3" action="{% url 'formulas:formula_list' %}" method="GET">
-                    <div class="input-group">
-                        <input type="text" class="form-control" name="search"
-                               placeholder="Поиск формулы..."
-                               value="{{ request.GET.search }}">
-                        <button class="btn btn-light" type="submit">
-                            <i class="bi bi-search"></i>
-                        </button>
-                    </div>
-                </form>
-
-                <!-- Быстрые действия -->
-                <div class="nav-item dropdown">
-                    <a class="btn btn-success dropdown-toggle" href="#" data-bs-toggle="dropdown">
-                        <i class="bi bi-plus-lg"></i> Создать
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li>
-                            <a class="dropdown-item" href="{% url 'formulas:formula_create' %}">
-                                <i class="bi bi-plus-circle"></i> Новая формула
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item" href="{% url 'formulas:category_create' %}">
-                                <i class="bi bi-folder-plus"></i> Новая категория
-                            </a>
-                        </li>
-                    </ul>
-                </div>
             </div>
         </div>
     </nav>
@@ -105,26 +120,26 @@
     {% endif %}
 
     <!-- Основной контент -->
-    <main class="container-fluid py-4">
+    <main class="container-fluid py-4 flex-grow-1">
         {% block content %}{% endblock %}
     </main>
 
     <!-- Footer -->
-    <footer class="footer mt-auto py-3 bg-light">
-        <div class="container text-center">
-            <span class="text-muted">Калькулятор формул © 2024</span>
+    <footer class="footer-main mt-auto">
+        <div class="container-fluid">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <small>Formula — Система расчёта формул</small>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <small>{{ request.user.get_full_name }}</small>
+                </div>
+            </div>
         </div>
     </footer>
 
-    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
-    <!-- CSRF Token для AJAX -->
-    <script>
-        const CSRF_TOKEN = '{{ csrf_token }}';
-    </script>
-
-    <!-- Custom JS -->
+    <script>const CSRF_TOKEN = '{{ csrf_token }}';</script>
     <script src="{% static 'js/main.js' %}"></script>
 
     {% block extra_js %}{% endblock %}

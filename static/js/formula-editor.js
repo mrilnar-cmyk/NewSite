@@ -65,8 +65,10 @@ document.addEventListener('DOMContentLoaded', function() {
         updatePreview();
     }
 
-    function updatePreview() {
+   function updatePreview() {
         const expression = expressionInput.value.trim();
+        const symbolField = document.getElementById('id_symbol');
+        const symbol = symbolField ? symbolField.value.trim() || '?' : '?';
 
         if (!expression) {
             formulaPreview.innerHTML = '<span class="text-muted fst-italic">Введите формулу...</span>';
@@ -74,14 +76,39 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Красивое отображение формулы
-        const prettyExpression = prettifyExpression(expression);
-        const symbolField = document.getElementById('id_symbol');
-        const symbol = symbolField ? symbolField.value || '?' : '?';
+        fetch('/formulas/api/latex-preview/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN,
+            },
+            body: JSON.stringify({
+                expression: expression,
+                symbol: symbol
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.latex) {
+                formulaPreview.innerHTML = data.latex;
+                if (typeof renderMathInElement !== 'undefined') {
+                    renderMathInElement(formulaPreview, {
+                        delimiters: [
+                            {left: '$$', right: '$$', display: true},
+                            {left: '\\(', right: '\\)', display: false}
+                        ],
+                        throwOnError: false
+                    });
+                }
+            } else {
+                formulaPreview.innerHTML = `<code class="fs-4 text-danger">${symbol} = [ошибка разбора]</code>`;
+            }
+        })
+        .catch(err => {
+            console.error('LaTeX preview error:', err);
+            formulaPreview.innerHTML = `<code class="fs-4">${symbol} = ${prettifyExpression(expression)}</code>`;
+        });
 
-        formulaPreview.innerHTML = `<code class="fs-4">${symbol} = ${prettyExpression}</code>`;
-
-        // Запрос к API для получения переменных
         fetchVariables(expression);
     }
 
@@ -183,10 +210,9 @@ document.addEventListener('DOMContentLoaded', function() {
         detectedVariables.innerHTML = html;
     }
 
-    // ===================================
+    
     // ПЕРЕКЛЮЧЕНИЕ ТИПА ФОРМУЛЫ
-    // ===================================
-
+    
     if (isInputCheckbox) {
         isInputCheckbox.addEventListener('change', toggleFormulaType);
         // Начальное состояние

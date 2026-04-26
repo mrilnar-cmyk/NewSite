@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block title %}Рабочий стол — Formula{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <p class="page-subtitle">Ваш рабочий стол</p>
+</div>
+
+<!-- Статистика -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-value">{{ formula_count }}</div>
+                    <div class="stat-label">Всего формул</div>
+                </div>
+                <div class="stat-icon stat-icon-primary">
+                    <i class="bi bi-calculator"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-value">{{ input_count }}</div>
+                    <div class="stat-label">Входных параметров</div>
+                </div>
+                <div class="stat-icon stat-icon-success">
+                    <i class="bi bi-input-cursor-text"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-value">{{ calc_count }}</div>
+                    <div class="stat-label">Вычисляемых</div>
+                </div>
+                <div class="stat-icon stat-icon-accent">
+                    <i class="bi bi-gear"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-value">{{ chart_count }}</div>
+                    <div class="stat-label">Графиков</div>
+                </div>
+                <div class="stat-icon stat-icon-info">
+                    <i class="bi bi-graph-up"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Быстрые действия -->
+    <div class="col-lg-4">
+        <div class="card-custom h-100">
+            <div class="card-header">
+                <i class="bi bi-lightning me-2"></i>Быстрые действия
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <a href="{% url 'formulas:formula_create' %}" class="quick-action">
+                            <i class="bi bi-plus-circle"></i>
+                            <span>Новая формула</span>
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{% url 'calculator:calculate_all' %}" class="quick-action">
+                            <i class="bi bi-play-circle"></i>
+                            <span>Расчёт</span>
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{% url 'calculator:project_list' %}" class="quick-action">
+                            <i class="bi bi-folder"></i>
+                            <span>Проекты</span>
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <a href="{% url 'formulas:chart_create' %}" class="quick-action">
+                            <i class="bi bi-graph-up"></i>
+                            <span>Новый график</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Недавние формулы -->
+    <div class="col-lg-8">
+        <div class="card-custom h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-clock-history me-2"></i>Недавние формулы</span>
+                <a href="{% url 'formulas:formula_list' %}" class="btn btn-sm btn-outline-primary">
+                    Все формулы
+                </a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_formulas %}
+                <table class="table table-custom mb-0">
+                    <thead>
+                        <tr>
+                            <th>Символ</th>
+                            <th>Название</th>
+                            <th>Тип</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for formula in recent_formulas %}
+                        <tr>
+                            <td><code class="formula-symbol">{{ formula.symbol }}</code></td>
+                            <td>{{ formula.name }}</td>
+                            <td>
+                                {% if formula.is_input %}
+                                <span class="badge badge-input">Входной</span>
+                                {% else %}
+                                <span class="badge badge-calc">Вычисляемый</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{% url 'formulas:formula_detail' formula.pk %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox" style="font-size: 3rem; color: var(--text-light);"></i>
+                    <p class="text-secondary mt-2">Формулы ещё не созданы</p>
+                    <a href="{% url 'formulas:formula_create' %}" class="btn btn-primary">
+                        Создать первую формулу
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

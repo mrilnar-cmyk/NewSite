@@ -1,15 +1,17 @@
-
-
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-*l=!7+r(5a6c&)6-#r4swwtjrr++u)&uj#6fj%0ytx=isztlz='
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+
 
 # Приложения
 INSTALLED_APPS = [
@@ -78,8 +80,32 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Кастомная модель пользователя
+AUTH_USER_MODEL = 'core.User'
+
+# URL для редиректов
+LOGIN_URL = 'core:login'
+LOGIN_REDIRECT_URL = 'core:dashboard'
+LOGOUT_REDIRECT_URL = 'core:home'
+
+#EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 465
+EMAIL_USE_TLS = False
+EMAIL_USE_SSL = True
+EMAIL_HOST_USER = 'magistraa2025@gmail.com'
+EMAIL_HOST_PASSWORD = os.getenv('GMAIL_APP_PASSWORD')
+DEFAULT_FROM_EMAIL = 'magistraa2025@gmail.com'
+SERVER_EMAIL = 'magistraa2025@gmail.com'
+
+
 # Настройки для формул
 FORMULA_SETTINGS = {
     'ANGLE_UNIT': 'degrees',  # Углы в градусах
-    'DECIMAL_PLACES': 4,  # Знаков после запятой
+    'DECIMAL_PLACES': 6,  # Знаков после запятой
 }
+
+# AI Chatbot
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')

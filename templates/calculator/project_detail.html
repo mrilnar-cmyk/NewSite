@@ -9,6 +9,9 @@
         <p class="text-muted">{{ project.description }}</p>
     </div>
     <div class="col-auto">
+        <a href="{% url 'calculator:export_project' project.pk %}" class="btn btn-success me-2">
+            <i class="bi bi-file-earmark-excel"></i> Экспорт в Excel
+        </a>
         <a href="{% url 'calculator:project_delete' project.pk %}" class="btn btn-outline-danger">
             <i class="bi bi-trash"></i> Удалить
         </a>
@@ -59,10 +62,14 @@
                     {% csrf_token %}
                     <div class="row g-2">
                         <div class="col-12">
-                            <select name="formula" class="form-select" required>
+                            <input type="text" id="formulaSearch" class="form-control mb-2" 
+                                placeholder="Поиск параметра..." onkeyup="filterFormulas()">
+                            <select name="formula" id="formulaSelect" class="form-select" required size="6">
                                 <option value="">Выберите параметр...</option>
                                 {% for f in input_formulas %}
-                                <option value="{{ f.pk }}">{{ f.symbol }} — {{ f.name }}</option>
+                                <option value="{{ f.pk }}" data-search="{{ f.symbol|lower }} {{ f.name|lower }}">
+                                    {{ f.symbol }} — {{ f.name }}
+                                </option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -82,6 +89,23 @@
                         </div>
                     </div>
                 </form>
+                <script>
+                function filterFormulas() {
+                    const input = document.getElementById('formulaSearch');
+                    const select = document.getElementById('formulaSelect');
+                    const filter = input.value.toLowerCase();
+                    
+                    for (let option of select.options) {
+                        if (option.value === "") {
+                            option.style.display = "";
+                            continue;
+                        }
+                        
+                        const searchText = option.getAttribute('data-search') || option.text.toLowerCase();
+                        option.style.display = searchText.includes(filter) ? "" : "none";
+                    }
+                }
+                </script>
             </div>
         </div>
         
@@ -114,6 +138,33 @@
                 <h5 class="mb-0"><i class="bi bi-list-ol"></i> Варианты</h5>
                 <span class="badge bg-primary">{{ variants.count }}</span>
             </div>
+            
+            <!-- ФИЛЬТРЫ И ПОИСК -->
+            <div class="card-body border-bottom">
+                <form method="GET" class="row g-2">
+                    <div class="col-md-6">
+                        <input type="text" name="search" class="form-control" 
+                               placeholder="Поиск по студенту..." value="{{ search_query }}">
+                    </div>
+                    <div class="col-md-4">
+                        <select name="filter" class="form-select">
+                            <option value="">Все варианты</option>
+                            <option value="assigned" {% if current_filter == 'assigned' %}selected{% endif %}>
+                                Назначенные
+                            </option>
+                            <option value="unassigned" {% if current_filter == 'unassigned' %}selected{% endif %}>
+                                Без студента
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
             <div class="card-body p-0">
                 {% if variants %}
                 <table class="table table-hover mb-0">
@@ -153,7 +204,13 @@
                 {% else %}
                 <div class="text-center py-5">
                     <i class="bi bi-inbox fs-1 text-muted"></i>
-                    <p class="text-muted">Варианты не созданы</p>
+                    <p class="text-muted">
+                        {% if search_query or current_filter %}
+                            Ничего не найдено
+                        {% else %}
+                            Варианты не созданы
+                        {% endif %}
+                    </p>
                 </div>
                 {% endif %}
             </div>

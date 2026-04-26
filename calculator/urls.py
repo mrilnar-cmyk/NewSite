@@ -14,6 +14,7 @@ urlpatterns = [
     path('projects/create/', views.ProjectCreateView.as_view(), name='project_create'),
     path('projects/<int:pk>/', views.ProjectDetailView.as_view(), name='project_detail'),
     path('projects/<int:pk>/delete/', views.ProjectDeleteView.as_view(), name='project_delete'),
+    path('projects/<int:pk>/export/', views.ExportProjectView.as_view(), name='export_project'),
 
     # Правила генерации
     path('projects/<int:project_id>/rules/add/', views.GenerationRuleCreateView.as_view(), name='rule_create'),
@@ -22,6 +23,9 @@ urlpatterns = [
     # Варианты
     path('projects/<int:project_id>/generate/', views.GenerateVariantsView.as_view(), name='generate_variants'),
     path('variants/<int:pk>/', views.VariantDetailView.as_view(), name='variant_detail'),
+    path('variants/<int:pk>/update-student/', views.VariantUpdateStudentView.as_view(), name='variant_update_student'),
     path('variants/<int:pk>/delete/', views.VariantDeleteView.as_view(), name='variant_delete'),
+    path('variants/<int:pk>/export/', views.ExportVariantView.as_view(), name='export_variant'),
     path('variants/<int:pk>/recalculate/', views.VariantRecalculateView.as_view(), name='variant_recalculate'),
+
 ]

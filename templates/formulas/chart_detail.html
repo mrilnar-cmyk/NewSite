@@ -1,0 +1,424 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load formula_tags %}
+
+{% block title %}{{ chart.name }}{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+    .slider-container {
+        padding: 15px 0;
+        border-bottom: 1px solid #eee;
+    }
+    .slider-container:last-child {
+        border-bottom: none;
+    }
+    .param-slider {
+        width: 100%;
+    }
+    .value-input {
+        width: 100px;
+        text-align: center;
+        font-weight: bold;
+        color: #0d6efd;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 2px 5px;
+    }
+    .value-input:focus {
+        border-color: #0d6efd;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+    }
+    .formula-display {
+        background: linear-gradient(135deg, #2c3e50 0%, #4a6fa5 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        font-size: 1.3rem;
+        text-align: center;
+        font-family: 'Cambria Math', serif;
+    }
+    .formula-display code {
+        color: #ffd700;
+        background: none;
+        font-size: 1.2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="bi bi-graph-up"></i> {{ chart.name }}</h1>
+    </div>
+    <div class="col-auto">
+        <a href="{% url 'formulas:chart_edit' chart.pk %}" class="btn btn-outline-primary me-2">
+            <i class="bi bi-pencil"></i> Редактировать
+        </a>
+        <a href="{% url 'formulas:chart_list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> К списку
+        </a>
+    </div>
+</div>
+
+<!-- Формула -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="formula-display">
+            <strong>{{ chart.formula.symbol }}</strong> = <code>{{ chart.formula.expression }}</code>
+            {% if chart.formula.unit %}
+            <span class="ms-3 opacity-75">[{{ chart.formula.unit }}]</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Параметры слева -->
+    <div class="col-lg-3">
+        <div class="card sticky-top" style="top: 80px;">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-sliders"></i> Параметры</h5>
+            </div>
+            <div class="card-body">
+                <!-- Информация об осях -->
+                <div class="alert alert-info py-2 mb-3">
+                    <small>
+                        <strong>Ось X:</strong> <code>{{ chart.x_variable }}</code><br>
+                        <strong>Ось Y:</strong> <code>{{ chart.formula.symbol }}</code>
+                    </small>
+                </div>
+
+                <!-- Ползунки для параметров -->
+                <div id="parameters-container">
+                    {% for param in dependent_params %}
+                    <div class="slider-container">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <code class="fs-5">{{ param.symbol }}</code>
+                                {% if param.unit %}
+                                <small class="text-muted">({{ param.unit }})</small>
+                                {% endif %}
+                            </div>
+                            <!-- Поле для ручного ввода -->
+                            <input type="number"
+                                   step="any"
+                                   class="value-input"
+                                   id="value-{{ param.symbol }}"
+                                   data-symbol="{{ param.symbol }}"
+                                   data-default="{{ param.default_value|dot_decimal }}"
+                                   value="{{ param.default_value|dot_decimal }}">
+                        </div>
+                        <small class="text-muted d-block mb-2">{{ param.name }}</small>
+
+                        <input type="range"
+                               class="form-range param-slider"
+                               id="slider-{{ param.symbol }}"
+                               data-symbol="{{ param.symbol }}"
+                               min="{{ param.min_value|dot_decimal }}"
+                               max="{{ param.max_value|dot_decimal }}"
+                               step="{{ param.step|dot_decimal }}"
+                               value="{{ param.default_value|dot_decimal }}">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">{{ param.min_value|dot_decimal }}</small>
+                            <small class="text-muted">{{ param.max_value|dot_decimal }}</small>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle"></i>
+                        Нет дополнительных параметров.
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <hr>
+
+                <!-- Диапазон X -->
+                <div class="mb-3">
+                    <label class="form-label"><strong>Диапазон {{ chart.x_variable }}:</strong></label>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <input type="number" step="any" class="form-control form-control-sm"
+                                   id="x-min" value="{{ chart.x_min|dot_decimal }}">
+                        </div>
+                        <div class="col-6">
+                            <input type="number" step="any" class="form-control form-control-sm"
+                                   id="x-max" value="{{ chart.x_max|dot_decimal }}">
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" id="update-chart-btn" class="btn btn-primary w-100 mb-2">
+                    <i class="bi bi-arrow-repeat"></i> Обновить график
+                </button>
+
+                <button type="button" id="reset-btn" class="btn btn-outline-secondary w-100">
+                    <i class="bi bi-arrow-counterclockwise"></i> Сбросить
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- График справа -->
+    <div class="col-lg-9">
+        <div class="card">
+            <div class="card-body p-2">
+                <div id="chart-container" style="height: 500px;">
+                    <div class="text-center py-5" id="chart-placeholder">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2">Загрузка графика...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Текущие значения -->
+        <div class="card mt-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Текущие значения</h6>
+            </div>
+            <div class="card-body py-2">
+                <div class="row" id="current-values">
+                    <div class="col-12 text-muted">Загрузка...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Таблица значений -->
+        <div class="card mt-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-table"></i> Таблица значений</h6>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="toggle-table-btn">
+                    Показать
+                </button>
+            </div>
+            <div id="table-container" style="display: none;">
+                <div class="table-responsive" style="max-height: 300px;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>{{ chart.x_variable }}</th>
+                                <th>{{ chart.formula.symbol }}</th>
+                            </tr>
+                        </thead>
+                        <tbody id="values-table">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Конфигурация графика с ТОЧНЫМИ значениями из БД
+const chartConfig = {
+    chartUrl: '{% url "formulas:chart_data" chart.pk %}',
+    xVariable: '{{ chart.x_variable }}',
+    yVariable: '{{ chart.formula.symbol }}',
+    yUnit: '{{ chart.formula.unit|default:"" }}',
+    csrfToken: '{{ csrf_token }}',
+    xMin: {{ chart.x_min|dot_decimal }},
+    xMax: {{ chart.x_max|dot_decimal }},
+    // Точные значения по умолчанию из базы данных
+    defaultParams: {
+        {% for param in dependent_params %}'{{ param.symbol }}': {{ param.default_value|dot_decimal }}{% if not forloop.last %}, {% endif %}{% endfor %}
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+
+    // Связываем ползунки с полями ввода
+    document.querySelectorAll('.param-slider').forEach(function(slider) {
+        var symbol = slider.dataset.symbol;
+        var valueInput = document.getElementById('value-' + symbol);
+
+        // При движении ползунка - обновляем поле ввода
+        slider.addEventListener('input', function() {
+            valueInput.value = parseFloat(this.value).toFixed(4);
+        });
+
+        // При отпускании ползунка - обновляем график
+        slider.addEventListener('change', function() {
+            loadChart();
+        });
+    });
+
+    // При изменении поля ввода - обновляем ползунок и график
+    document.querySelectorAll('.value-input').forEach(function(input) {
+        var symbol = input.dataset.symbol;
+        var slider = document.getElementById('slider-' + symbol);
+
+        input.addEventListener('change', function() {
+            var value = parseFloat(this.value);
+            if (!isNaN(value)) {
+                // Ограничиваем значение диапазоном ползунка (но можно ввести вручную любое)
+                slider.value = value;
+                loadChart();
+            }
+        });
+
+        // При нажатии Enter
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                this.blur();
+                loadChart();
+            }
+        });
+    });
+
+    // Кнопка обновления
+    document.getElementById('update-chart-btn').addEventListener('click', function() {
+        loadChart();
+    });
+
+    // Кнопка сброса - устанавливаем ТОЧНЫЕ значения из БД
+    document.getElementById('reset-btn').addEventListener('click', function() {
+        for (var symbol in chartConfig.defaultParams) {
+            var exactValue = chartConfig.defaultParams[symbol];
+            var slider = document.getElementById('slider-' + symbol);
+            var valueInput = document.getElementById('value-' + symbol);
+
+            if (slider) slider.value = exactValue;
+            if (valueInput) valueInput.value = exactValue;
+        }
+
+        document.getElementById('x-min').value = chartConfig.xMin;
+        document.getElementById('x-max').value = chartConfig.xMax;
+
+        loadChart();
+    });
+
+    // Показать/скрыть таблицу
+    document.getElementById('toggle-table-btn').addEventListener('click', function() {
+        var table = document.getElementById('table-container');
+        if (table.style.display === 'none') {
+            table.style.display = 'block';
+            this.textContent = 'Скрыть';
+        } else {
+            table.style.display = 'none';
+            this.textContent = 'Показать';
+        }
+    });
+
+    // Загружаем график
+    loadChart();
+});
+
+function loadChart() {
+    var btn = document.getElementById('update-chart-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Загрузка...';
+
+
+    // Собираем значения из полей ввода (не из ползунков!)
+    var values = {};
+    document.querySelectorAll('.value-input').forEach(function(input) {
+        var symbol = input.dataset.symbol;
+        var value = parseFloat(input.value);
+        if (!isNaN(value)) {
+            values[symbol] = value;
+        }
+    });
+
+    var xMin = parseFloat(document.getElementById('x-min').value);
+    var xMax = parseFloat(document.getElementById('x-max').value);
+
+    var requestData = {
+        values: values,
+        x_min: xMin,
+        x_max: xMax
+    };
+
+    fetch(chartConfig.chartUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': chartConfig.csrfToken
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(function(response) {
+        return response.json();
+    })
+    .then(function(data) {
+        if (data.success) {
+            renderChart(data);
+            renderTable(data);
+            updateCurrentValues(values, data);
+
+            document.getElementById('chart-placeholder').style.display = 'none';
+        } else {
+            showError(data.error || 'Неизвестная ошибка');
+
+            document.getElementById('chart-placeholder').style.display = 'none';
+        }
+    })
+    .catch(function(error) {
+        showError('Ошибка соединения: ' + error);
+
+        document.getElementById('chart-placeholder').style.display = 'none';
+    })
+    .finally(function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Обновить график';
+    });
+}
+
+function renderChart(data) {
+    var trace = {
+        x: data.x_values,
+        y: data.y_values,
+        type: 'scatter',
+        mode: 'lines+markers',
+        name: data.y_label,
+        line: { color: '#0d6efd', width: 2 },
+        marker: { color: '#0d6efd', size: 4 }
+    };
+
+    var layout = {
+        xaxis: { title: data.x_label },
+        yaxis: { title: data.y_label },
+        showlegend: false,
+        margin: { t: 30, b: 50, l: 60, r: 30 }
+    };
+
+    Plotly.newPlot('chart-container', [trace], layout, {responsive: true});
+}
+
+function renderTable(data) {
+    var html = '';
+    for (var i = 0; i < data.x_values.length; i++) {
+        var y = data.y_values[i];
+        html += '<tr><td>' + data.x_values[i] + '</td><td>' + (y !== null ? y.toFixed(6) : '—') + '</td></tr>';
+    }
+    document.getElementById('values-table').innerHTML = html;
+}
+
+function updateCurrentValues(params, data) {
+    var html = '';
+    for (var symbol in params) {
+        html += '<div class="col-auto"><span class="badge bg-light text-dark border"><code>' + symbol + '</code> = ' + params[symbol] + '</span></div>';
+    }
+
+    var validY = data.y_values.filter(function(y) { return y !== null; });
+    if (validY.length > 0) {
+        var minY = Math.min.apply(null, validY);
+        var maxY = Math.max.apply(null, validY);
+        html += '<div class="col-auto ms-auto"><span class="badge bg-success">' + chartConfig.yVariable + ' min = ' + minY.toFixed(4) + '</span> ';
+        html += '<span class="badge bg-danger">' + chartConfig.yVariable + ' max = ' + maxY.toFixed(4) + '</span></div>';
+    }
+    
+    document.getElementById('current-values').innerHTML = html;
+}
+
+function showError(message) {
+    document.getElementById('chart-container').innerHTML = '<div class="alert alert-danger m-3"><i class="bi bi-exclamation-triangle"></i> <strong>Ошибка:</strong> ' + message + '</div>';
+}
+</script>
+{% endblock %}

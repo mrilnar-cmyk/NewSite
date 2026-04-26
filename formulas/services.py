@@ -66,7 +66,7 @@ class FormulaParser:
 class FormulaCalculator:
     """Движок вычисления формул с каскадными зависимостями"""
 
-    def __init__(self, angle_unit: str = 'degrees', decimal_places: int = 4):
+    def __init__(self, angle_unit: str = 'degrees', decimal_places: int = 8):
         self.angle_unit = angle_unit
         self.decimal_places = decimal_places
 
@@ -338,6 +338,19 @@ class VariantGenerator:
 
         return values
 
+    def create_formulas_snapshot(self, formulas: List['Formula']) -> dict:
+        """Создает JSON-снимок всех формул для сохранения в варианте"""
+        snapshot = {}
+        for formula in formulas:
+            snapshot[formula.symbol] = {
+                'name': formula.name,
+                'expression': formula.expression,
+                'unit': formula.unit,
+                'is_input': formula.is_input,
+                'description': formula.description,
+            }
+        return snapshot
+
     def generate_variants(self, count: int) -> List['Variant']:
         """Генерирует указанное количество вариантов"""
         from .models import Variant, VariantValue, VariantGenerationRule, Formula
@@ -347,7 +360,9 @@ class VariantGenerator:
             return []
 
         calculator = FormulaCalculator()
-        all_formulas = list(Formula.objects.all())
+        
+        #Только формулы текущего пользователя
+        all_formulas = list(Formula.objects.filter(user=self.project.user).select_related('category'))
 
         # Находим следующий номер варианта
         last_variant = self.project.variants.order_by('-number').first()
@@ -359,10 +374,14 @@ class VariantGenerator:
             # Генерируем входные значения
             input_values = self.generate_values(rules)
 
+            # ВЕРСИОНИРОВАНИЕ: Создаем снимок формул
+            formulas_snapshot = self.create_formulas_snapshot(all_formulas)
+
             # Создаём вариант
             variant = Variant.objects.create(
                 project=self.project,
-                number=start_number + i
+                number=start_number + i,
+                formulas_snapshot=formulas_snapshot  # Сохраняем снимок
             )
 
             # Вычисляем все формулы
@@ -371,7 +390,9 @@ class VariantGenerator:
             # Сохраняем значения
             for symbol, result in results.items():
                 formula = next((f for f in all_formulas if f.symbol == symbol), None)
-                if formula and result.value is not None:
+                
+                # ИСПРАВЛЕНИЕ 2: Проверяем принадлежность формулы
+                if formula and formula.user == self.project.user and result.value is not None:
                     VariantValue.objects.create(
                         variant=variant,
                         formula=formula,
@@ -385,4 +406,4 @@ class VariantGenerator:
 
 
 # Глобальный экземпляр калькулятора
-calculator = FormulaCalculator(angle_unit='degrees', decimal_places=4)
+calculator = FormulaCalculator(angle_unit='degrees', decimal_places=8)

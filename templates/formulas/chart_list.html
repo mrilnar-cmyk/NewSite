@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block title %}Графики{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h1><i class="bi bi-graph-up"></i> Графики</h1>
+    </div>
+    <div class="col-auto">
+        <a href="{% url 'formulas:chart_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Создать график
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    {% for chart in charts %}
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">{{ chart.name }}</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    <strong>Формула:</strong> <code>{{ chart.formula.symbol }}</code><br>
+                    <strong>По оси X:</strong> <code>{{ chart.x_variable }}</code><br>
+                    <strong>Диапазон:</strong> {{ chart.x_min }} — {{ chart.x_max }}
+                </p>
+                <span class="badge bg-info">{{ chart.get_chart_type_display }}</span>
+            </div>
+            <div class="card-footer">
+                <div class="btn-group w-100">
+                    <a href="{% url 'formulas:chart_detail' chart.pk %}" class="btn btn-outline-primary">
+                        <i class="bi bi-eye"></i> Открыть
+                    </a>
+                    <a href="{% url 'formulas:chart_edit' chart.pk %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-pencil"></i>
+                    </a>
+                    <a href="{% url 'formulas:chart_delete' chart.pk %}" class="btn btn-outline-danger">
+                        <i class="bi bi-trash"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="text-center py-5">
+            <i class="bi bi-graph-up fs-1 text-muted"></i>
+            <p class="text-muted mt-2">Графики не созданы</p>
+            <a href="{% url 'formulas:chart_create' %}" class="btn btn-primary">
+                <i class="bi bi-plus"></i> Создать первый график
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
